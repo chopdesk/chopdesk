@@ -1,0 +1,721 @@
+/* app/globals.css */
+@import "tailwindcss";
+
+@theme {
+  /* Colors */
+  --color-primary: #8B0000;
+  --color-primary-hover: #A50000;
+  --color-primary-light: #FFF0F0;
+  --color-bg: #FFFFFF;
+  --color-bg-subtle: #F5F5F5;
+  --color-bg-card: #FFFFFF;
+  --color-border: #E8E8E8;
+  --color-border-strong: #BDBDBD;
+  --color-text-primary: #111111;
+  --color-text-secondary: #5E5E5E;
+  --color-text-muted: #9E9E9E;
+  --color-text-inverse: #FFFFFF;
+  --color-success: #2E7D32;
+  --color-warning: #E65100;
+  --color-danger: #C62828;
+  --color-info: #1565C0;
+
+  /* Spacing */
+  --spacing: 0.25rem;
+
+  /* Border radius */
+  --radius-sm: 8px;
+  --radius-default: 12px;
+  --radius-lg: 18px;
+  --radius-full: 9999px;
+
+  /* Fonts */
+  --font-display: var(--font-geist-sans), system-ui, sans-serif;
+--font-heading: var(--font-geist-sans), system-ui, sans-serif;
+--font-body: var(--font-geist-sans), system-ui, sans-serif;
+
+  /* ── TYPE SCALE ─────────────────────────────────
+     Single source of truth.
+     To restyle the whole app change values here only.
+  ─────────────────────────────────────────────── */
+  --text-brand:  28px;
+  --text-h1:     24px;
+  --text-h2:     20px;
+  --text-h3:     16px;
+  --text-body:   14px;
+  --text-small:  12px;
+  --text-label:  13px;
+  --text-mono:   13px;
+
+  --weight-brand:  700;
+  --weight-h1:     640;
+  --weight-h2:     500;
+  --weight-h3:     500;
+  --weight-body:   400;
+  --weight-small:  400;
+  --weight-label:  500;
+  --weight-mono:   400;
+
+  --leading-brand: 1.1;
+  --leading-h1:    1.25;
+  --leading-h2:    1.3;
+  --leading-h3:    1.4;
+  --leading-body:  1.55;
+  --leading-small: 1.5;
+  --leading-label: 1;
+
+  --tracking-brand: -0.02em;
+  --tracking-h1:    -0.015em;
+  --tracking-h2:    -0.01em;
+  --tracking-h3:    -0.005em;
+  --tracking-body:   0em;
+  --tracking-small:  0.01em;
+  --tracking-label:  0.01em;
+}
+
+/* ── BASE ───────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-bg-subtle);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  font-weight: var(--weight-body);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  height: 100%;
+}
+
+/* ── TYPE CLASSES ───────────────────────────────── */
+.t-brand {
+  font-family: var(--font-display);
+  font-size: var(--text-brand);
+  font-weight: var(--weight-brand);
+  line-height: var(--leading-brand);
+  letter-spacing: var(--tracking-brand);
+}
+
+.t-h1 {
+  font-family: var(--font-body);
+  font-size: var(--text-h1);
+  font-weight: var(--weight-h1);
+  line-height: var(--leading-h1);
+  letter-spacing: var(--tracking-h1);
+}
+
+.t-h2 {
+  font-family: var(--font-body);
+  font-size: var(--text-h2);
+  font-weight: var(--weight-h2);
+  line-height: var(--leading-h2);
+  letter-spacing: var(--tracking-h2);
+}
+
+.t-h3 {
+  font-family: var(--font-body);
+  font-size: var(--text-h3);
+  font-weight: var(--weight-h3);
+  line-height: var(--leading-h3);
+  letter-spacing: var(--tracking-h3);
+}
+
+.t-body {
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  font-weight: var(--weight-body);
+  line-height: var(--leading-body);
+  letter-spacing: var(--tracking-body);
+}
+
+.t-small {
+  font-family: var(--font-body);
+  font-size: var(--text-small);
+  font-weight: var(--weight-small);
+  line-height: var(--leading-small);
+  letter-spacing: var(--tracking-small);
+}
+
+.t-label {
+  font-family: var(--font-body);
+  font-size: var(--text-label);
+  font-weight: var(--weight-label);
+  line-height: var(--leading-label);
+  letter-spacing: var(--tracking-label);
+}
+
+.t-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  font-weight: var(--weight-mono);
+}
+
+/* ── TOUCH TARGETS ──────────────────────────────── */
+button,
+a,
+[role="button"],
+select {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+input,
+textarea {
+  min-height: 48px;
+}
+
+/* ── BUTTONS ────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background-color: var(--color-primary);
+  color: white;
+  font-family: var(--font-body);
+  font-size: var(--text-label);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 0 24px;
+  height: 48px;
+  border-radius: var(--radius-default);
+  transition: background-color 0.15s, transform 0.1s;
+  cursor: pointer;
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.btn-primary:active {
+  transform: scale(0.97);
+}
+
+.btn-primary:active::after {
+  width: 200%;
+  height: 200%;
+}
+
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s, height 0.3s;
+}
+
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background-color: white;
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-label);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 0 20px;
+  height: 48px;
+  border-radius: var(--radius-default);
+  border: 1.5px solid var(--color-border);
+  transition: border-color 0.15s, transform 0.1s;
+  cursor: pointer;
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.btn-secondary:hover {
+  border-color: var(--color-border-strong);
+}
+
+.btn-secondary:active {
+  transform: scale(0.97);
+}
+
+.btn-secondary:active::after {
+  width: 200%;
+  height: 200%;
+}
+
+.btn-secondary::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.05);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s, height 0.3s;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── INPUTS ─────────────────────────────────────── */
+.input-base {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--color-border);
+  background-color: white;
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: var(--weight-body);
+  transition: border-color 0.15s;
+  outline: none;
+}
+
+.input-base:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.08);
+  font-size: 16px;
+}
+
+.input-base::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* ── CARDS ──────────────────────────────────────── */
+.card {
+  background-color: white;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  transition: border-color 0.2s ease;
+}
+
+.card:active {
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
+}
+
+/* ── NAVIGATION ─────────────────────────────────── */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 68px;
+  background-color: white;
+  border-top: 1.5px solid var(--color-border);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 0 8px;
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 10;
+}
+
+.bottom-nav button:active {
+  transform: translateY(2px);
+  transition: transform 0.05s ease;
+}
+
+.top-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background-color: white;
+  border-bottom: 1.5px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 10;
+}
+
+.top-bar button:active {
+  transform: scale(0.95);
+  transition: transform 0.05s ease;
+}
+
+/* ── PROGRESS BARS ──────────────────────────────── */
+.progress-bar {
+  height: 5px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-border);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.4s ease;
+}
+
+.progress-fill-high   { background-color: var(--color-success); }
+.progress-fill-medium { background-color: var(--color-warning); }
+.progress-fill-low    { background-color: var(--color-danger);  }
+
+
+/* ── SCROLLBAR ──────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 0px;
+  height: 0px;
+}
+
+/* ── SAFE AREA ──────────────────────────────────── */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ── SAFE AREA UTILITIES ──────────────────────────────── */
+/* For elements that need to respect notches and home indicators */
+
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+  margin-top: env(safe-area-inset-top);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+  margin-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-left {
+  padding-left: env(safe-area-inset-left);
+  margin-left: env(safe-area-inset-left);
+}
+
+.safe-right {
+  padding-right: env(safe-area-inset-right);
+  margin-right: env(safe-area-inset-right);
+}
+
+/* For fixed position elements */
+.fixed-safe-top {
+  top: max(0px, env(safe-area-inset-top));
+}
+
+.fixed-safe-bottom {
+  bottom: max(0px, env(safe-area-inset-bottom));
+}
+
+/* For header/top bars */
+.top-bar-safe {
+  padding-top: max(0px, env(safe-area-inset-top));
+}
+
+/* For bottom navigation */
+.bottom-nav-safe {
+  padding-bottom: max(0px, env(safe-area-inset-bottom));
+}
+
+/* ── PWA INSTALL BUTTON ──────────────────────────────── */
+.pwa-install-button {
+  bottom: calc(68px + 16px);
+}
+
+/* Adjust for devices with taller bottom nav areas */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .pwa-install-button {
+    bottom: calc(68px + 16px + env(safe-area-inset-bottom));
+  }
+}
+
+/* ── TOUCH ACTIVE STATES ──────────────────────────────── */
+/* Removes default tap highlight on mobile */
+button,
+a,
+[role="button"],
+input,
+textarea,
+select,
+.btn-primary,
+.btn-secondary,
+.card button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Scale effect for menu items in orders page */
+.menu-item:active {
+  transform: scale(0.97);
+  transition: transform 0.05s ease;
+}
+
+/* Better focus states for accessibility */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Active state for drawer items */
+.drawer-item:active {
+  transform: scale(0.98);
+  background-color: var(--color-bg-subtle);
+  transition: transform 0.05s ease;
+}
+
+/* Active state for filter tabs */
+.filter-tab:active {
+  transform: translateY(1px);
+  transition: transform 0.05s ease;
+}
+
+/* Prevent text selection during rapid taps */
+button,
+[role="button"] {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Improve touch feedback for list items */
+.list-item {
+  transition: background-color 0.1s ease;
+}
+
+.list-item:active {
+  background-color: var(--color-bg-subtle);
+}
+
+/* Improve touch feedback for table rows */
+tbody tr {
+  transition: background-color 0.1s ease;
+}
+
+tbody tr:active {
+  background-color: var(--color-bg-subtle);
+}
+
+/* Better scroll behavior for modals */
+.modal-content {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Improve input focus on mobile - prevents zoom */
+input:focus,
+textarea:focus,
+select:focus {
+  font-size: 16px;
+}
+
+/* Hover effects for desktop (only on devices that support hover) */
+@media (hover: hover) {
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    transition: transform 0.2s ease;
+  }
+  
+  .btn-secondary:hover {
+    transform: translateY(-1px);
+    transition: transform 0.2s ease;
+  }
+  
+  .card:hover {
+    border-color: var(--color-primary);
+    transition: border-color 0.2s ease;
+  }
+  
+  tbody tr:hover {
+    background-color: var(--color-bg-subtle);
+    cursor: pointer;
+  }
+}
+
+/* ── SKELETON LOADERS ──────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-border) 0%,
+    var(--color-bg-card) 20%,
+    var(--color-border) 40%,
+    var(--color-border) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-wave 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes skeleton-wave {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-text {
+  height: 1em;
+  width: 100%;
+  margin: 0.5em 0;
+}
+
+.skeleton-text-sm {
+  height: 0.875em;
+  width: 60%;
+}
+
+.skeleton-text-xs {
+  height: 0.75em;
+  width: 40%;
+}
+
+.skeleton-title {
+  height: 1.5em;
+  width: 60%;
+  margin-bottom: 1em;
+}
+
+.skeleton-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+}
+
+.skeleton-card {
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  background-color: white;
+  border: 1.5px solid var(--color-border);
+}
+
+.skeleton-button {
+  height: 48px;
+  border-radius: var(--radius-default);
+  width: 100%;
+}
+
+.skeleton-table-row {
+  display: flex;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ── PULL-TO-REFRESH FIX (LESS AGGRESSIVE) ──────────────── */
+/* Only prevent pull-to-refresh, don't break scrolling */
+
+html {
+  overscroll-behavior-y: none;
+}
+
+body {
+  overscroll-behavior-y: contain;
+  /* Normal scrolling - no position fixed or overflow hidden */
+}
+
+/* For pages that need custom scroll containers */
+.page-scroll {
+  overscroll-behavior-y: contain;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Refreshing indicator animation */
+.refreshing {
+  position: relative;
+}
+
+.refreshing::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--color-primary);
+  animation: refresh-progress 0.8s ease-in-out infinite;
+  z-index: 100;
+}
+
+@keyframes refresh-progress {
+  0% {
+    width: 0%;
+    opacity: 1;
+  }
+  50% {
+    width: 50%;
+    opacity: 0.8;
+  }
+  100% {
+    width: 100%;
+    opacity: 0;
+  }
+}
+
+/* For modals and drawers */
+.modal-scroll {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+/* Ensure main app container scrolls properly */
+#__next {
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Re-enable for elements that intentionally need rubber-band effect */
+.allow-rubber-band {
+  overscroll-behavior-y: auto;
+}
+
+/* Ensure chat page takes full screen without any interference */
+.chat-fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  background: #ECE5DD;
+}
