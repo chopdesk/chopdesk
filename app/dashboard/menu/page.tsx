@@ -112,7 +112,7 @@ export default function MenuManagement() {
   }
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="p-4 sm:p-6 pb-28 sm:pb-28">
       <div className="flex justify-between items-center mb-6">
         <h1 className="t-h1 text-text-primary">Menu Items</h1>
         <button onClick={() => openModal()} className="btn-primary flex items-center gap-2 whitespace-nowrap">

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, ShoppingBag, Package, Clock,
-  Utensils, Receipt, History,
+  Utensils, Receipt, History, Users,
   LogOut, Menu, X
 } from 'lucide-react'
 import { signOut, getSession } from '@/lib/auth'
@@ -41,6 +41,7 @@ function DashboardShell({
     { name: 'Menu Items',    icon: Utensils, path: '/dashboard/menu' },
     { name: 'Order History', icon: Receipt,  path: '/dashboard/order-history' },
     { name: 'Shift History', icon: History,  path: '/dashboard/shifts' },
+    { name: 'Team',          icon: Users,    path: '/dashboard/team' },
   ]
 
   const allItems = [...bottomNav, ...drawerItems]

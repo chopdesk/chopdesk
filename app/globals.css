@@ -719,3 +719,11 @@ body {
   z-index: 1000;
   background: #ECE5DD;
 }
+
+/* Hide the mobile bottom bar on desktop widths.
+   Plain CSS beats Tailwind's md:hidden, so the rule has to live here. */
+@media (min-width: 768px) {
+  .bottom-nav {
+    display: none;
+  }
+}
