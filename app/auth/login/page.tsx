@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { signIn } from '@/lib/auth'
 import Link from 'next/link'
 import { Eye, EyeOff } from 'lucide-react'
+import { signIn, acceptInvite } from '@/lib/auth'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -13,6 +13,11 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [invite, setInvite] = useState<string | null>(null)
+
+  useEffect(() => {
+    setInvite(new URLSearchParams(window.location.search).get('invite'))
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -21,12 +26,37 @@ export default function LoginPage() {
 
     const result = await signIn(email, password)
 
-    if (result.success && result.session) {
-      router.push('/dashboard')
-    } else {
+    if (!result.success || !result.state) {
       setError(result.error || 'Login failed')
+      setLoading(false)
+      return
     }
-    setLoading(false)
+
+    // Someone arriving from an invite link joins that business first
+    if (invite) {
+      const joined = await acceptInvite(invite)
+      if (!joined.success) {
+        setError(joined.error || 'Could not use this invite link')
+        setLoading(false)
+        return
+      }
+      router.push('/dashboard')
+      return
+    }
+
+    const state = result.state
+
+    if (state.status === 'ready') {
+      router.push('/dashboard')
+    } else if (state.status === 'no_business') {
+      router.push('/auth/signup?step=business')
+    } else if (state.status === 'suspended') {
+      setError(state.orgName + ' is currently suspended. Please contact support.')
+      setLoading(false)
+    } else {
+      setError('Login failed')
+      setLoading(false)
+    }
   }
 
   return (
@@ -34,16 +64,18 @@ export default function LoginPage() {
 
       {/* Top brand section */}
       <div className="bg-primary px-6 pt-16 pb-10">
-        <h1 className="t-brand text-white">Uptimyzas Kitchen</h1>
+        <h1 className="t-brand text-white">Chopdesk</h1>
         <p className="t-small text-white/60 mt-2 tracking-widest uppercase">
-          Restaurant Management System
+          Restaurant Management
         </p>
       </div>
 
       {/* Form section */}
       <div className="flex-1 px-6 pt-8 pb-10">
         <h2 className="t-h1 text-text-primary mb-1">Welcome back</h2>
-        <p className="t-body text-text-secondary mb-8">Sign in to your account to continue</p>
+        <p className="t-body text-text-secondary mb-8">
+          {invite ? 'Sign in to join your team' : 'Sign in to your account to continue'}
+        </p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -98,7 +130,10 @@ export default function LoginPage() {
 
         <p className="t-body text-text-secondary text-center mt-8">
           Don't have an account?{' '}
-          <Link href="/auth/signup" className="text-primary font-semibold">
+          <Link
+            href={invite ? '/auth/signup?invite=' + invite : '/auth/signup'}
+            className="text-primary font-semibold"
+          >
             Create account
           </Link>
         </p>
