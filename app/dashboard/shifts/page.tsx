@@ -60,7 +60,7 @@ export default function ShiftsHistoryPage() {
           let staffNames: string[] = []
           if (userIds.length > 0) {
             const { data: users } = await supabase
-              .from('users')
+              .from('profiles')
               .select('id, first_name, surname')
               .in('id', userIds)
 

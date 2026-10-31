@@ -61,7 +61,7 @@ export default function MenuManagement() {
       if (error) { toast('Error updating item: ' + error.message, 'error'); return }
       toast('Item updated', 'success')
     } else {
-      const { error } = await supabase.from('menu_items').insert(itemData)
+      const { error } = await supabase.from('menu_items').insert({ ...itemData, org_id: getSession()!.org_id })
       if (error) { toast('Error creating item: ' + error.message, 'error'); return }
       toast('Item created', 'success')
     }

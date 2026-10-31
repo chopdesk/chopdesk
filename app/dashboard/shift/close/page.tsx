@@ -101,7 +101,7 @@ export default function ShiftClosePage() {
       let names: string[] = []
       if (userIds.length > 0) {
         const { data: users, error: usersError } = await supabase
-          .from('users')
+          .from('profiles')
           .select('id, first_name, surname')
           .in('id', userIds)
         if (usersError) throw new Error(usersError.message)
@@ -243,6 +243,7 @@ ${discrepancyLines}
         }
 
         return {
+          org_id: userSession.org_id,
           shift_id: activeShift.id,
           item_id: r.item_id,
           opening_qty: r.opening_qty,

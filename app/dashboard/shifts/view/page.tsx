@@ -124,7 +124,7 @@ function ShiftDetailContent() {
       let staffNames: string[] = []
       if (userIds.length > 0) {
         const { data: users, error: usersError } = await supabase
-          .from('users')
+          .from('profiles')
           .select('id, first_name, surname')
           .in('id', userIds)
         if (usersError) throw new Error(usersError.message)

@@ -180,6 +180,7 @@ export default function PaymentPage() {
     const { data: orderData, error: orderError } = await supabase
       .from('orders')
       .insert({
+        org_id:          session.org_id,
         shift_id:        activeShift.id,
         staff_id:        session.id,
         items_json:      itemsJson,

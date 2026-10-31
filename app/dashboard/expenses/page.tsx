@@ -81,6 +81,7 @@ export default function ExpensesPage() {
     setSubmitting(true)
 
     const { error } = await supabase.from('expenses').insert({
+      org_id: session.org_id,
       shift_id: activeShift.id,
       staff_id: session.id,
       description: formData.description,

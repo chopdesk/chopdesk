@@ -1,18 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, ShoppingBag, Package, Clock,
   Utensils, Receipt, History,
   LogOut, Menu, X
 } from 'lucide-react'
-import { clearSession } from '@/lib/auth'
+import { signOut, getSession } from '@/lib/auth'
+import AuthGuard from '@/components/AuthGuard'
 import { getActiveShift } from '@/lib/shift'
 import ConnectionStatus from '@/components/ConnectionStatus'
 import UpdateBanner, { UpdateButton } from '@/components/UpdateManager'
 
-export default function DashboardLayout({
+function DashboardShell({
   children,
 }: {
   children: React.ReactNode
@@ -20,6 +21,11 @@ export default function DashboardLayout({
   const pathname = usePathname()
   const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [orgName, setOrgName] = useState('')
+
+  useEffect(() => {
+    setOrgName(getSession()?.org_name || '')
+  }, [])
 
   const bottomNav = [
     { name: 'Home',   icon: LayoutDashboard, path: '/dashboard' },
@@ -51,7 +57,7 @@ export default function DashboardLayout({
   const getPageTitle = () => {
     if (pathname === '/dashboard') return null
     const item = allItems.find(i => i.path === pathname)
-    return item?.name || extraTitles[pathname || ''] || 'Uptimyzas Kitchen'
+    return item?.name || extraTitles[pathname || ''] || orgName || 'Chopdesk'
   }
 
   const pageTitle = getPageTitle()
@@ -78,8 +84,8 @@ export default function DashboardLayout({
     }
   }
 
-  const handleLogout = () => {
-    clearSession()
+  const handleLogout = async () => {
+    await signOut()
     router.replace('/auth/login')
   }
 
@@ -102,7 +108,7 @@ export default function DashboardLayout({
             <div className="w-9" />
           </>
         ) : (
-          <h1 className="t-brand text-primary">Uptimyzas Kitchen</h1>
+          <h1 className="t-brand text-primary">{orgName}</h1>
         )}
       </div>
 
@@ -251,5 +257,13 @@ export default function DashboardLayout({
         </div>
       </div>
     </div>
+  )
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <AuthGuard>
+      <DashboardShell>{children}</DashboardShell>
+    </AuthGuard>
   )
 }

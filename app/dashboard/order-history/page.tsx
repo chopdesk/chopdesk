@@ -48,7 +48,7 @@ export default function OrderHistoryPage() {
   }, [router])
 
   const fetchStaffList = async () => {
-    const { data } = await supabase.from('users').select('id, first_name, surname').eq('status', 'active').order('first_name')
+    const { data } = await supabase.from('profiles').select('id, first_name, surname').order('first_name')
     if (data) setStaffList(data)
   }
 

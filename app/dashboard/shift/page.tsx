@@ -95,8 +95,10 @@ export default function ShiftGatePage() {
       const { data: newShift, error: shiftError } = await supabase
         .from('shifts')
         .insert({
+          org_id: userSession.org_id,
+          location_id: userSession.location_id,
           opened_by: userSession.id,
-          opened_at: new Date().toISOString(),
+          // opened_at is set by the database
         })
         .select()
         .single()
@@ -108,6 +110,7 @@ export default function ShiftGatePage() {
       const stockRows = menuItems.map(item => {
         const qty = parseInt(openingQty[item.id] || '0') || 0
         return {
+          org_id: userSession.org_id,
           shift_id: newShift.id,
           item_id: item.id,
           item_name: item.name,

@@ -52,7 +52,7 @@ export default function DashboardPage() {
       const totalRevenue = orders?.reduce((sum, o) => sum + o.total, 0) || 0
 
       const { count: staffCount } = await supabase
-        .from('users')
+        .from('memberships')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'active')
 
