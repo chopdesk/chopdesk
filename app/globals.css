@@ -716,3 +716,97 @@ body {
     display: none;
   }
 }
+
+/* AUTH TRANSITIONS */
+html { --auth-shift: 0px; }
+html[data-auth-dir='forward'] { --auth-shift: 28px; }
+html[data-auth-dir='back'] { --auth-shift: -28px; }
+
+.auth-indicator {
+  transition: transform 560ms cubic-bezier(0.3, 1.2, 0.5, 1);
+  will-change: transform;
+}
+
+/* Fallback entrance for browsers without view transitions */
+.auth-enter {
+  animation: auth-swap-in 520ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+html[data-auth-leaving] .auth-enter {
+  opacity: 0;
+  transform: translateX(calc(var(--auth-shift) * -0.5)) scale(0.985);
+  filter: blur(4px);
+  transition: opacity 180ms ease-in, transform 180ms ease-in, filter 180ms ease-in;
+}
+
+/* View transition: soft cross-dissolve with a light blur */
+html[data-auth-vt] .auth-enter {
+  animation: none;
+  view-transition-name: auth-form;
+}
+
+html[data-auth-vt] .auth-tabs {
+  view-transition-name: auth-tabs;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-group(auth-form) {
+  animation-duration: 480ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+::view-transition-old(auth-form) {
+  animation: auth-vt-out 240ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+::view-transition-new(auth-form) {
+  animation: auth-vt-in 480ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both;
+}
+
+::view-transition-group(auth-tabs) {
+  animation: none;
+}
+
+::view-transition-old(auth-tabs) {
+  display: none;
+}
+
+::view-transition-new(auth-tabs) {
+  animation: none;
+}
+
+.auth-chrome:has([data-hide-tabs]) .auth-tabs {
+  display: none;
+}
+
+@keyframes auth-swap-in {
+  from { opacity: 0; transform: translate(var(--auth-shift), 12px) scale(0.985); filter: blur(4px); }
+  to   { opacity: 1; transform: none; filter: none; }
+}
+
+@keyframes auth-vt-out {
+  to { opacity: 0; transform: translateX(calc(var(--auth-shift) * -0.5)) scale(0.985); filter: blur(4px); }
+}
+
+@keyframes auth-vt-in {
+  from { opacity: 0; transform: translateX(var(--auth-shift)) scale(0.985); filter: blur(4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-indicator,
+  .auth-enter,
+  html[data-auth-leaving] .auth-enter {
+    animation: none;
+    transition: none;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

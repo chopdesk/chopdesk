@@ -11,6 +11,7 @@ import {
   getInviteInfo,
   loadAuthState,
 } from '@/lib/auth'
+import { brand } from '@/lib/brand'
 
 type Mode = 'loading' | 'owner' | 'join' | 'business' | 'bad_invite'
 
@@ -136,168 +137,182 @@ export default function SignupPage() {
       ? 'Create your account to join your team'
       : mode === 'business'
         ? 'One last step to get started'
-        : 'Set up your restaurant on Chopdesk'
+        : 'Set up your restaurant on ' + brand.name
+
+  const submitLabel =
+    mode === 'join' ? 'Join team' : mode === 'business' ? 'Create business' : 'Create account'
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <>
+      {(mode === 'business' || mode === 'bad_invite') && <span data-hide-tabs hidden />}
+      {mode === 'loading' && (
+        <div className="flex justify-center py-16">
+          <div className="w-7 h-7 border-[3px] border-border border-t-primary rounded-full animate-spin" />
+        </div>
+      )}
 
-      {/* Top brand section */}
-      <div className="bg-primary px-6 pt-16 pb-10">
-        <h1 className="t-brand text-white">Chopdesk</h1>
-        <p className="t-small text-white/60 mt-2 tracking-widest uppercase">
-          Restaurant Management
-        </p>
-      </div>
+      {mode === 'bad_invite' && (
+        <div className="text-center md:text-left py-4">
+          <h1 className="t-h1 text-text-primary mb-3">Invite link not valid</h1>
+          <p className="t-body text-text-secondary mb-8">
+            This invite link is invalid or has expired. Ask the owner of the business to send you
+            a new one.
+          </p>
+          <Link href="/auth/login" className="btn-primary w-full md:w-auto md:px-8">
+            Go to sign in
+          </Link>
+        </div>
+      )}
 
-      <div className="flex-1 px-6 pt-8 pb-10 overflow-y-auto">
+      {(mode === 'owner' || mode === 'join' || mode === 'business') && (
+        <>
+          <h1 className="t-h1 text-text-primary mb-1 text-center md:text-left">{heading}</h1>
+          <p className="t-body text-text-secondary mb-8 text-center md:text-left">{subheading}</p>
 
-        {mode === 'loading' && (
-          <div className="flex justify-center py-16">
-            <div className="w-7 h-7 border-[3px] border-border border-t-primary rounded-full animate-spin" />
-          </div>
-        )}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {needsBusiness && (
+              <div>
+                <label htmlFor="business" className="block t-label text-text-primary mb-2">
+                  Business name *
+                </label>
+                <input
+                  id="business"
+                  type="text"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  className="input-base"
+                  placeholder="e.g. Mama Put Kitchen"
+                  required
+                />
+              </div>
+            )}
 
-        {mode === 'bad_invite' && (
-          <div className="text-center py-8">
-            <h2 className="t-h1 text-text-primary mb-3">Invite link not valid</h2>
-            <p className="t-body text-text-secondary mb-8">
-              This invite link is invalid or has expired. Ask the owner of the business to send you a new one.
-            </p>
-            <Link href="/auth/login" className="btn-primary inline-block">
-              Go to sign in
-            </Link>
-          </div>
-        )}
+            {needsAccount && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="firstName" className="block t-label text-text-primary mb-2">
+                      First name *
+                    </label>
+                    <input
+                      id="firstName"
+                      type="text"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="input-base"
+                      placeholder="John"
+                      autoComplete="given-name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="surname" className="block t-label text-text-primary mb-2">
+                      Surname *
+                    </label>
+                    <input
+                      id="surname"
+                      type="text"
+                      value={surname}
+                      onChange={(e) => setSurname(e.target.value)}
+                      className="input-base"
+                      placeholder="Doe"
+                      autoComplete="family-name"
+                      required
+                    />
+                  </div>
+                </div>
 
-        {(mode === 'owner' || mode === 'join' || mode === 'business') && (
-          <>
-            <h2 className="t-h1 text-text-primary mb-1">{heading}</h2>
-            <p className="t-body text-text-secondary mb-8">{subheading}</p>
+                <div>
+                  <label htmlFor="email" className="block t-label text-text-primary mb-2">
+                    Email address *
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="input-base"
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="block t-label text-text-primary mb-2">
+                    Password *
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="input-base pr-12"
+                      placeholder="Min. 6 characters"
+                      autoComplete="new-password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted min-h-0 min-w-0 w-8 h-8 flex items-center justify-center"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="confirm" className="block t-label text-text-primary mb-2">
+                    Confirm password *
+                  </label>
+                  <input
+                    id="confirm"
+                    type={showPassword ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="input-base"
+                    placeholder="Re-enter your password"
+                    autoComplete="new-password"
+                    required
+                  />
+                </div>
+              </>
+            )}
 
             {error && (
-              <div className="bg-danger/10 border border-danger/30 rounded-[10px] p-3 mb-6">
+              <div role="alert" className="bg-danger/10 border border-danger/30 rounded-[10px] p-3">
                 <p className="text-danger t-small">{error}</p>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {needsBusiness && (
-                <div>
-                  <label className="block t-label text-text-primary mb-2">Business name *</label>
-                  <input
-                    type="text"
-                    value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
-                    className="input-base"
-                    placeholder="e.g. Mama Put Kitchen"
-                    required
-                  />
-                </div>
-              )}
-
-              {needsAccount && (
+            <button type="submit" disabled={loading} className="btn-primary w-full mt-2">
+              {loading ? (
                 <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block t-label text-text-primary mb-2">First name *</label>
-                      <input
-                        type="text"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                        className="input-base"
-                        placeholder="John"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block t-label text-text-primary mb-2">Surname *</label>
-                      <input
-                        type="text"
-                        value={surname}
-                        onChange={(e) => setSurname(e.target.value)}
-                        className="input-base"
-                        placeholder="Doe"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block t-label text-text-primary mb-2">Email address *</label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="input-base"
-                      placeholder="you@example.com"
-                      autoComplete="email"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block t-label text-text-primary mb-2">Password *</label>
-                    <div className="relative">
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="input-base pr-12"
-                        placeholder="Min. 6 characters"
-                        autoComplete="new-password"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted min-h-0 min-w-0 w-8 h-8 flex items-center justify-center"
-                      >
-                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block t-label text-text-primary mb-2">Confirm password *</label>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="input-base"
-                      placeholder="Re-enter your password"
-                      autoComplete="new-password"
-                      required
-                    />
-                  </div>
+                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  Please wait...
                 </>
+              ) : (
+                submitLabel
               )}
+            </button>
+          </form>
 
-              <button type="submit" disabled={loading} className="btn-primary w-full mt-2">
-                {loading
-                  ? 'Please wait...'
-                  : mode === 'join'
-                    ? 'Join team'
-                    : mode === 'business'
-                      ? 'Create business'
-                      : 'Create account'}
-              </button>
-            </form>
-
-            {mode !== 'business' && (
-              <p className="t-body text-text-secondary text-center mt-8">
-                Already have an account?{' '}
-                <Link
-                  href={invite ? '/auth/login?invite=' + invite : '/auth/login'}
-                  className="text-primary font-semibold"
-                >
-                  Sign in
-                </Link>
-              </p>
-            )}
-          </>
-        )}
-      </div>
-
-    </div>
+          {mode !== 'business' && (
+            <p className="t-body text-text-secondary text-center md:text-left mt-8">
+              Already have an account?{' '}
+              <Link
+                href={invite ? '/auth/login?invite=' + invite : '/auth/login'}
+                className="text-primary font-semibold"
+              >
+                Sign in
+              </Link>
+            </p>
+          )}
+        </>
+      )}
+    </>
   )
 }

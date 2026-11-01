@@ -60,85 +60,82 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <>
+      <h1 className="t-h1 text-text-primary mb-1 text-center md:text-left">Welcome back</h1>
+      <p className="t-body text-text-secondary mb-8 text-center md:text-left">
+        {invite ? 'Sign in to join your team' : 'Sign in to your account to continue'}
+      </p>
 
-      {/* Top brand section */}
-      <div className="bg-primary px-6 pt-16 pb-10">
-        <h1 className="t-brand text-white">Chopdesk</h1>
-        <p className="t-small text-white/60 mt-2 tracking-widest uppercase">
-          Restaurant Management
-        </p>
-      </div>
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <label htmlFor="email" className="block t-label text-text-primary mb-2">
+            Email address
+          </label>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="input-base"
+            placeholder="you@example.com"
+            autoComplete="email"
+            required
+          />
+        </div>
 
-      {/* Form section */}
-      <div className="flex-1 px-6 pt-8 pb-10">
-        <h2 className="t-h1 text-text-primary mb-1">Welcome back</h2>
-        <p className="t-body text-text-secondary mb-8">
-          {invite ? 'Sign in to join your team' : 'Sign in to your account to continue'}
-        </p>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block t-label text-text-primary mb-2">Email address</label>
+        <div>
+          <label htmlFor="password" className="block t-label text-text-primary mb-2">
+            Password
+          </label>
+          <div className="relative">
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="input-base"
-              placeholder="you@example.com"
-              autoComplete="email"
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="input-base pr-12"
+              placeholder="Enter your password"
+              autoComplete="current-password"
               required
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted min-h-0 min-w-0 w-8 h-8 flex items-center justify-center"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
+        </div>
 
-          <div>
-            <label className="block t-label text-text-primary mb-2">Password</label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input-base pr-12"
-                placeholder="Enter your password"
-                autoComplete="current-password"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted min-h-0 min-w-0 w-8 h-8 flex items-center justify-center"
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
+        {error && (
+          <div role="alert" className="bg-danger/10 border border-danger/30 rounded-[10px] p-3">
+            <p className="text-danger t-small">{error}</p>
           </div>
+        )}
 
-          {error && (
-            <div className="bg-danger/10 border border-danger/30 rounded-[10px] p-3">
-              <p className="text-danger t-small">{error}</p>
-            </div>
+        <button type="submit" disabled={loading} className="btn-primary w-full mt-2">
+          {loading ? (
+            <>
+              <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              Signing in...
+            </>
+          ) : (
+            'Sign in'
           )}
+        </button>
+      </form>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary w-full mt-2"
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
-
-        <p className="t-body text-text-secondary text-center mt-8">
-          Don't have an account?{' '}
-          <Link
-            href={invite ? '/auth/signup?invite=' + invite : '/auth/signup'}
-            className="text-primary font-semibold"
-          >
-            Create account
-          </Link>
-        </p>
-      </div>
-
-    </div>
+      <p className="t-body text-text-secondary text-center md:text-left mt-8">
+        New to Chopdesk?{' '}
+        <Link
+          href={invite ? '/auth/signup?invite=' + invite : '/auth/signup'}
+          className="text-primary font-semibold"
+        >
+          Create an account
+        </Link>
+      </p>
+    </>
   )
 }
