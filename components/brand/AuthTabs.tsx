@@ -1,19 +1,22 @@
 ﻿'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
 type Key = 'login' | 'signup'
 
 type VTDocument = Document & {
-  startViewTransition?: (update: () => Promise<void>) => { finished: Promise<unknown> }
+  startViewTransition?: (update: () => Promise<void>) => unknown
 }
 
 const tabs: { key: Key; label: string; path: string }[] = [
   { key: 'login', label: 'Sign in', path: '/auth/login' },
   { key: 'signup', label: 'Create account', path: '/auth/signup' },
 ]
+
+// Runs before paint in the browser, and falls back to useEffect during server prerender
+const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
 
 export default function AuthTabs() {
   const router = useRouter()
@@ -23,17 +26,32 @@ export default function AuthTabs() {
   const [active, setActive] = useState<Key>(current)
   const [invite, setInvite] = useState<string | null>(null)
   const [hidden, setHidden] = useState(false)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const pending = useRef<(() => void) | null>(null)
+  const settle = useRef<(() => void) | null>(null)
 
-  // Stay in sync with the real route, and let a running transition capture the new page
+  // Entrance animation is on when arriving at the auth pages, and cleaned up on leaving
+  useIsoLayoutEffect(() => {
+    const root = document.documentElement
+    root.dataset.authEnter = 'true'
+    return () => {
+      delete root.dataset.authEnter
+      delete root.dataset.authDir
+      if (settle.current) settle.current()
+    }
+  }, [])
+
+  // Warm up both pages so a switch is instant
   useEffect(() => {
+    router.prefetch('/auth/login')
+    router.prefetch('/auth/signup')
+  }, [router])
+
+  // Stay in sync with the real route, and tell a running transition the new page is in place
+  useIsoLayoutEffect(() => {
     setActive(current)
-    delete document.documentElement.dataset.authLeaving
-    if (pending.current) {
-      const done = pending.current
-      pending.current = null
-      requestAnimationFrame(() => done())
+    if (settle.current) {
+      const done = settle.current
+      settle.current = null
+      done()
     }
   }, [current])
 
@@ -42,17 +60,6 @@ export default function AuthTabs() {
     setInvite(params.get('invite'))
     setHidden(params.get('step') === 'business')
   }, [pathname])
-
-  // Clean up when leaving the auth pages
-  useEffect(() => {
-    return () => {
-      delete document.documentElement.dataset.authDir
-      delete document.documentElement.dataset.authLeaving
-      delete document.documentElement.dataset.authVt
-      if (timer.current) clearTimeout(timer.current)
-      if (pending.current) pending.current()
-    }
-  }, [])
 
   if (hidden) return null
 
@@ -67,35 +74,27 @@ export default function AuthTabs() {
 
     const root = document.documentElement
     root.dataset.authDir = key === 'signup' ? 'forward' : 'back'
+    setActive(key)
 
     const doc = document as VTDocument
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-    // Best path: the browser cross-dissolves the old and new form together
     if (doc.startViewTransition && !reduceMotion) {
-      root.dataset.authVt = 'true'
-      const transition = doc.startViewTransition(
+      // The browser cross-dissolves the old and new form together
+      delete root.dataset.authEnter
+      doc.startViewTransition(
         () =>
           new Promise<void>((resolve) => {
-            pending.current = resolve
+            settle.current = resolve
             router.push(href)
-            setTimeout(resolve, 1200) // safety: never hang if navigation stalls
+            window.setTimeout(resolve, 1500) // safety: never hang if navigation stalls
           })
       )
-      const cleanup = () => {
-        delete root.dataset.authVt
-      }
-      transition.finished.then(cleanup, cleanup)
-      return
+    } else {
+      // Browsers without view transitions: switch at once, new form eases in
+      root.dataset.authEnter = 'true'
+      router.push(href)
     }
-
-    // Fallback: short exit, then the new form eases in
-    root.dataset.authLeaving = 'true'
-    setActive(key)
-    timer.current = setTimeout(() => router.push(href), 180)
-    setTimeout(() => {
-      delete root.dataset.authLeaving
-    }, 2000)
   }
 
   return (
