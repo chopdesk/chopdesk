@@ -1,88 +1,141 @@
-'use client'
+﻿'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, ShoppingBag, Package, Clock,
   Utensils, Receipt, History, Users,
-  LogOut, Menu, X
+  LogOut, Menu, X,
 } from 'lucide-react'
 import { signOut, getSession } from '@/lib/auth'
 import AuthGuard from '@/components/AuthGuard'
 import { getActiveShift } from '@/lib/shift'
 import ConnectionStatus from '@/components/ConnectionStatus'
 import UpdateBanner, { UpdateButton } from '@/components/UpdateManager'
+import Logo from '@/components/brand/Logo'
 
-function DashboardShell({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const pathname = usePathname()
+const SPRING = 'cubic-bezier(0.3, 1.2, 0.5, 1)'
+const SHIFT_START = '/dashboard/shift'
+const SHIFT_CLOSE = '/dashboard/shift/close'
+
+const bottomNav = [
+  { name: 'Home', icon: LayoutDashboard, path: '/dashboard' },
+  { name: 'Orders', icon: ShoppingBag, path: '/dashboard/orders' },
+  { name: 'Stock', icon: Package, path: '/dashboard/stock' },
+  { name: 'Shift', icon: Clock, path: SHIFT_START },
+]
+
+// Standing config and history live in the drawer; shift actions live in the main tabs
+const drawerItems = [
+  { name: 'Menu Items', icon: Utensils, path: '/dashboard/menu' },
+  { name: 'Order History', icon: Receipt, path: '/dashboard/order-history' },
+  { name: 'Shift History', icon: History, path: '/dashboard/shifts' },
+  { name: 'Team', icon: Users, path: '/dashboard/team' },
+]
+
+const allItems = [...bottomNav, ...drawerItems]
+
+// Pages reached from inside a flow still need a real title in the top bar
+const extraTitles: Record<string, string> = {
+  '/dashboard/expenses': 'Expenses',
+  '/dashboard/shift/close': 'Close Shift',
+  '/dashboard/shifts/view': 'Shift Details',
+  '/dashboard/payment': 'Payment',
+  '/dashboard/receipt': 'Receipt',
+}
+
+// Flow pages light up the tab they are reached from
+const parentOf: Record<string, string> = {
+  '/dashboard/shift/close': SHIFT_START,
+  '/dashboard/shifts/view': '/dashboard/shifts',
+  '/dashboard/payment': '/dashboard/orders',
+  '/dashboard/receipt': '/dashboard/orders',
+  '/dashboard/expenses': '/dashboard/orders',
+}
+
+function DashboardShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname() || ''
+  // trailingSlash is on, so the real path is "/dashboard/"; compare without the slash
+  const path = pathname.replace(/\/+$/, '') || '/'
   const router = useRouter()
+
   const [menuOpen, setMenuOpen] = useState(false)
   const [orgName, setOrgName] = useState('')
+  const [pending, setPending] = useState<string | null>(null)
+  const shiftActive = useRef<boolean | null>(null)
 
   useEffect(() => {
     setOrgName(getSession()?.org_name || '')
   }, [])
 
-  const bottomNav = [
-    { name: 'Home',   icon: LayoutDashboard, path: '/dashboard' },
-    { name: 'Orders', icon: ShoppingBag,     path: '/dashboard/orders' },
-    { name: 'Stock',  icon: Package,         path: '/dashboard/stock' },
-    { name: 'Shift',  icon: Clock,           path: '/dashboard/shift' },
-  ]
+  // The tap highlights instantly; once the route really changes, trust the route
+  useEffect(() => {
+    setPending(null)
+  }, [path])
 
-  // Expenses lives inside the order-taking page (next to Add Stock) since
-  // it's something you log during an active shift, not a settings-style
-  // page — the drawer is for standing config/history, not shift actions.
-  const drawerItems = [
-    { name: 'Menu Items',    icon: Utensils, path: '/dashboard/menu' },
-    { name: 'Order History', icon: Receipt,  path: '/dashboard/order-history' },
-    { name: 'Shift History', icon: History,  path: '/dashboard/shifts' },
-    { name: 'Team',          icon: Users,    path: '/dashboard/team' },
-  ]
+  const refreshShift = useCallback(async () => {
+    try {
+      shiftActive.current = !!(await getActiveShift())
+    } catch {
+      // keep the last known value
+    }
+  }, [])
 
-  const allItems = [...bottomNav, ...drawerItems]
+  useEffect(() => {
+    refreshShift()
+  }, [path, refreshShift])
 
-  // Pages reachable from inside a flow rather than from nav — still need
-  // a real title in the top bar instead of falling back to the brand name.
-  const extraTitles: Record<string, string> = {
-    '/dashboard/expenses':    'Expenses',
-    '/dashboard/shift/close': 'Close Shift',
-    '/dashboard/payment':     'Payment',
-    '/dashboard/receipt':     'Receipt',
-  }
+  const current = pending ?? path
+  const activePath = parentOf[current] ?? current
 
-  const getPageTitle = () => {
-    if (pathname === '/dashboard') return null
-    const item = allItems.find(i => i.path === pathname)
-    return item?.name || extraTitles[pathname || ''] || orgName || 'Chopdesk'
-  }
+  const sidebarIdx = allItems.findIndex((i) => i.path === activePath)
+  const bottomIdx = bottomNav.findIndex((i) => i.path === activePath)
+  const inDrawer = drawerItems.some((i) => i.path === activePath)
+  const navIdx = bottomIdx >= 0 ? bottomIdx : inDrawer ? bottomNav.length : -1
 
-  const pageTitle = getPageTitle()
+  const pageTitle =
+    path === '/dashboard'
+      ? null
+      : allItems.find((i) => i.path === path)?.name || extraTitles[path] || orgName || 'Chopdesk'
 
-  const isShiftPath = (path: string) =>
-    path === '/dashboard/shift' || path === '/dashboard/shift/close'
-
-  const navigate = (path: string) => {
+  const navigate = (target: string) => {
     setMenuOpen(false)
-    router.push(path)
+    setPending(target)
+    router.push(target)
   }
 
-  // The Shift tab routes smartly: straight to Close Shift if one's already
-  // open, otherwise to Start Shift — same check the dashboard button uses,
-  // just run on tap instead of on every page load.
+  // Shift tab: go straight to Close Shift if one is open, otherwise Start Shift.
+  // Uses the last known answer so the tap never waits on the network, then double-checks.
   const handleShiftNav = async () => {
     setMenuOpen(false)
+    setPending(SHIFT_START)
+
+    const guess = shiftActive.current
+    if (guess !== null) {
+      router.push(guess ? SHIFT_CLOSE : SHIFT_START)
+      refreshShift().then(() => {
+        const now = shiftActive.current
+        const here = window.location.pathname.replace(/\/+$/, '')
+        if (now !== null && now !== guess && (here === SHIFT_START || here === SHIFT_CLOSE)) {
+          router.replace(now ? SHIFT_CLOSE : SHIFT_START)
+        }
+      })
+      return
+    }
+
     try {
       const shift = await getActiveShift()
-      router.push(shift ? '/dashboard/shift/close' : '/dashboard/shift')
+      shiftActive.current = !!shift
+      router.push(shift ? SHIFT_CLOSE : SHIFT_START)
     } catch (err) {
       console.error(err)
-      router.push('/dashboard/shift')
+      router.push(SHIFT_START)
     }
+  }
+
+  const handleItem = (target: string) => {
+    if (target === SHIFT_START) handleShiftNav()
+    else navigate(target)
   }
 
   const handleLogout = async () => {
@@ -91,18 +144,72 @@ function DashboardShell({
   }
 
   return (
-    <div className="h-screen flex flex-col bg-bg-subtle overflow-hidden">
+    <div className="h-screen flex flex-col bg-bg-subtle overflow-hidden" style={{ height: '100dvh' }}>
+      {/* Sidebar: tablet and PC */}
+      <aside className="hidden md:flex fixed inset-y-0 left-0 z-30 w-56 flex-col border-r border-border bg-white">
+        <div className="flex h-14 shrink-0 items-center border-b border-border px-5">
+          <Logo size={30} nameSize={22} />
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-3 py-4">
+          <div className="relative flex flex-col gap-0.5">
+            <span
+              aria-hidden
+              className="absolute left-0 right-0 top-0 h-11 rounded-[10px] bg-primary/10"
+              style={{
+                transform: `translateY(${Math.max(sidebarIdx, 0) * 46}px)`,
+                opacity: sidebarIdx >= 0 ? 1 : 0,
+                transition: `transform 460ms ${SPRING}, opacity 200ms ease`,
+              }}
+            />
+            {allItems.map(({ name, icon: Icon, path: itemPath }) => {
+              const isActive = activePath === itemPath
+              return (
+                <button
+                  key={itemPath}
+                  onClick={() => handleItem(itemPath)}
+                  className={`relative z-10 flex h-11 w-full min-h-0 items-center gap-3 rounded-[10px] px-3 transition-[color,background-color,transform] duration-150 active:scale-[0.97] ${
+                    isActive
+                      ? 'text-primary'
+                      : 'text-text-secondary hover:bg-bg-subtle hover:text-text-primary'
+                  }`}
+                >
+                  <Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} />
+                  <span className="t-body font-medium">{name}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="shrink-0 border-t border-border px-3 pb-6 pt-3">
+          <div className="mb-2">
+            <UpdateButton />
+          </div>
+          <button
+            onClick={handleLogout}
+            className="flex h-11 w-full min-h-0 items-center gap-3 rounded-[10px] px-3 text-danger transition-[background-color,transform] duration-150 hover:bg-danger/5 active:scale-[0.97]"
+          >
+            <LogOut size={18} />
+            <span className="t-body font-medium">Sign Out</span>
+          </button>
+        </div>
+      </aside>
+
       {/* Top bar */}
-      <div className="top-bar fixed top-0 left-0 right-0 z-20 bg-white flex-shrink-0">
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"><ConnectionStatus variant="dot" /></div>
+      <header className="fixed left-0 right-0 top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-white px-4 md:left-56">
+        <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+          <ConnectionStatus variant="dot" />
+        </div>
         {pageTitle ? (
           <>
             <button
               onClick={() => router.back()}
-              className="flex items-center justify-center w-9 h-9 min-h-0 min-w-0 rounded-full hover:bg-bg-subtle transition-colors text-text-secondary"
+              aria-label="Go back"
+              className="flex h-9 w-9 min-h-0 min-w-0 items-center justify-center rounded-full text-text-secondary transition-[background-color,transform] duration-150 hover:bg-bg-subtle active:scale-90"
             >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
             <p className="t-h3 text-text-primary">{pageTitle}</p>
@@ -111,77 +218,48 @@ function DashboardShell({
         ) : (
           <h1 className="t-brand text-primary">{orgName}</h1>
         )}
-      </div>
+      </header>
 
       {/* Connection banner */}
-      <div className="fixed top-14 left-0 right-0 z-30 pointer-events-none">
+      <div className="pointer-events-none fixed left-0 right-0 top-14 z-30 md:left-56">
         <ConnectionStatus />
       </div>
 
       {/* Update available card */}
       <UpdateBanner />
 
-      {/* Desktop layout */}
-      <div className="hidden md:flex flex-1 pt-14 overflow-hidden">
-        <aside className="w-56 bg-white border-r border-border flex-shrink-0 overflow-y-auto">
-          <div className="flex flex-col h-full">
-            <div className="flex-1 px-3 py-4 space-y-0.5">
-              {allItems.map(({ name, icon: Icon, path }) => {
-                const isActive = isShiftPath(path) ? isShiftPath(pathname || '') : pathname === path
-                return (
-                  <button
-                    key={path}
-                    onClick={() => path === '/dashboard/shift' ? handleShiftNav() : navigate(path)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[10px] transition-colors min-h-0 ${
-                      isActive
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-text-secondary hover:bg-bg-subtle hover:text-text-primary'
-                    }`}
-                  >
-                    <Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} />
-                    <span className="t-body font-medium">{name}</span>
-                  </button>
-                )
-              })}
-            </div>
-            <div className="px-3 pb-6 border-t border-border pt-3">
-              <div className="mb-2"><UpdateButton /></div>
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-danger hover:bg-danger/5 transition-colors min-h-0"
-              >
-                <LogOut size={18} />
-                <span className="t-body font-medium">Sign Out</span>
-              </button>
-            </div>
-          </div>
-        </aside>
-
-        <main className="flex-1 min-w-0 overflow-y-auto">
-          {children}
-        </main>
-      </div>
-
-      {/* Mobile content */}
-      <div className="md:hidden flex-1 pt-14 pb-20 overflow-y-auto">
+      {/* Page content: rendered once for every screen size */}
+      <main className="flex-1 overflow-y-auto pb-20 pt-14 md:pb-0 md:pl-56" style={{ overscrollBehaviorY: 'contain' }}>
         {children}
-      </div>
+      </main>
 
       {/* Mobile bottom nav */}
-      <div className="md:hidden bottom-nav fixed bottom-0 left-0 right-0 z-20 bg-white">
-        {bottomNav.map(({ name, icon: Icon, path }) => {
-          const isActive = isShiftPath(path) ? isShiftPath(pathname || '') : pathname === path
+      <nav
+        className="md:hidden bottom-nav fixed bottom-0 left-0 right-0 z-20 bg-white"
+        style={{ padding: '0 0 env(safe-area-inset-bottom)' }}
+      >
+        <span
+          aria-hidden
+          className="pointer-events-none absolute left-0 top-0 flex w-1/5 justify-center"
+          style={{
+            transform: `translateX(${Math.max(navIdx, 0) * 100}%)`,
+            opacity: navIdx >= 0 ? 1 : 0,
+            transition: `transform 460ms ${SPRING}, opacity 200ms ease`,
+          }}
+        >
+          <span className="h-[3px] w-8 rounded-full bg-primary" />
+        </span>
+
+        {bottomNav.map(({ name, icon: Icon, path: itemPath }) => {
+          const isActive = activePath === itemPath
           return (
             <button
-              key={path}
-              onClick={() => path === '/dashboard/shift' ? handleShiftNav() : navigate(path)}
-              className={`flex flex-col items-center gap-1 min-h-0 min-w-0 flex-1 pb-1 pt-2 relative transition-colors ${
+              key={itemPath}
+              onClick={() => handleItem(itemPath)}
+              className={`flex h-full min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-1 transition-[color,transform] duration-150 active:scale-90 ${
                 isActive ? 'text-primary' : 'text-text-muted'
               }`}
             >
-              {isActive && (
-                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-full bg-primary" />
-              )}
               <Icon size={22} strokeWidth={isActive ? 2.2 : 1.8} />
               <span className="text-[10px] font-medium">{name}</span>
             </button>
@@ -190,53 +268,52 @@ function DashboardShell({
 
         <button
           onClick={() => setMenuOpen(true)}
-          className={`flex flex-col items-center gap-1 min-h-0 min-w-0 flex-1 pb-1 pt-2 relative transition-colors ${
-            drawerItems.some(i => i.path === pathname) ? 'text-primary' : 'text-text-muted'
+          className={`flex h-full min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-1 transition-[color,transform] duration-150 active:scale-90 ${
+            inDrawer ? 'text-primary' : 'text-text-muted'
           }`}
         >
-          {drawerItems.some(i => i.path === pathname) && (
-            <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-full bg-primary" />
-          )}
-          <Menu size={22} strokeWidth={1.8} />
+          <Menu size={22} strokeWidth={inDrawer ? 2.2 : 1.8} />
           <span className="text-[10px] font-medium">More</span>
         </button>
-      </div>
+      </nav>
 
-      {/* Drawer overlay */}
-      {menuOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/30 md:hidden"
-          onClick={() => setMenuOpen(false)}
-        />
-      )}
+      {/* Drawer overlay (always mounted so it can fade) */}
+      <div
+        className={`md:hidden fixed inset-0 z-40 bg-black/35 transition-opacity duration-300 ${
+          menuOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+        }`}
+        onClick={() => setMenuOpen(false)}
+      />
 
       {/* Drawer */}
-      <div className={`md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-[24px] transition-transform duration-300 ease-out ${
-        menuOpen ? 'translate-y-0' : 'translate-y-full'
-      }`}>
-        <div className="w-10 h-1 rounded-full bg-border mx-auto mt-3 mb-1" />
+      <div
+        aria-hidden={!menuOpen}
+        className={`md:hidden fixed bottom-0 left-0 right-0 z-50 rounded-t-[24px] bg-white will-change-transform transition-transform duration-[420ms] ease-[cubic-bezier(0.32,0.72,0,1)] ${
+          menuOpen ? 'translate-y-0' : 'pointer-events-none translate-y-full'
+        }`}
+      >
+        <div className="mx-auto mb-1 mt-3 h-1 w-10 rounded-full bg-border" />
 
-        <div className="flex justify-between items-center px-5 py-3 border-b border-border">
+        <div className="flex items-center justify-between border-b border-border px-5 py-3">
           <p className="t-h3 text-text-primary">Menu</p>
           <button
             onClick={() => setMenuOpen(false)}
-            className="text-text-muted min-h-0 min-w-0 w-9 h-9 flex items-center justify-center rounded-full hover:bg-bg-subtle"
+            aria-label="Close menu"
+            className="flex h-9 w-9 min-h-0 min-w-0 items-center justify-center rounded-full text-text-muted transition-[background-color,transform] duration-150 hover:bg-bg-subtle active:scale-90"
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="px-4 py-4 grid grid-cols-2 gap-2 max-h-[60vh] overflow-y-auto pb-safe">
-          {drawerItems.map(({ name, icon: Icon, path }) => {
-            const isActive = pathname === path
+        <div className="pb-safe grid max-h-[60vh] grid-cols-2 gap-2 overflow-y-auto px-4 py-4">
+          {drawerItems.map(({ name, icon: Icon, path: itemPath }) => {
+            const isActive = activePath === itemPath
             return (
               <button
-                key={path}
-                onClick={() => navigate(path)}
-                className={`flex flex-col items-center gap-2 py-4 rounded-[14px] transition-colors min-h-0 drawer-item ${
-                  isActive
-                    ? 'bg-primary/10 text-primary'
-                    : 'bg-bg-subtle text-text-secondary'
+                key={itemPath}
+                onClick={() => navigate(itemPath)}
+                className={`drawer-item flex min-h-0 flex-col items-center gap-2 rounded-[14px] py-4 transition-colors ${
+                  isActive ? 'bg-primary/10 text-primary' : 'bg-bg-subtle text-text-secondary'
                 }`}
               >
                 <Icon size={22} strokeWidth={isActive ? 2.2 : 1.8} />
@@ -246,11 +323,13 @@ function DashboardShell({
           })}
         </div>
 
-        <div className="px-5 pt-1 pb-3"><UpdateButton /></div>
+        <div className="px-5 pb-3 pt-1">
+          <UpdateButton />
+        </div>
         <div className="px-5 pb-8 pt-1">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-[12px] text-danger border border-danger/20 t-label hover:bg-danger/5 transition-colors"
+            className="t-label flex w-full items-center justify-center gap-2 rounded-[12px] border border-danger/20 py-3 text-danger transition-[background-color,transform] duration-150 hover:bg-danger/5 active:scale-[0.98]"
           >
             <LogOut size={16} />
             Sign Out
