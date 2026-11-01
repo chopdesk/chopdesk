@@ -192,7 +192,7 @@ export default function ShiftClosePage() {
           .join('\n')
       : 'No discrepancies'
 
-    return `*Uptimyzas Kitchen — Shift Report*
+    return `*${getSession()?.org_name || 'Chopdesk'} — Shift Report*
 ${dateStr}
 ${openTimeStr} – ${closeTimeStr} (${durationH}h ${durationM}m)
 Staff: ${staffNames.join(', ')}

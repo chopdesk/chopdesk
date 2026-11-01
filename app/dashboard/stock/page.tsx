@@ -165,15 +165,15 @@ export default function StockBoard() {
     }
     const pct = (remaining / opening) * 100
     if (pct > thresholds.high) return {
-      color: 'text-[#2E7D32]',
-      bg: 'bg-[#2E7D32]/10',
+      color: 'text-success',
+      bg: 'bg-success/10',
       label: 'Good',
       fill: 'progress-fill-high',
       pct,
     }
     if (pct >= thresholds.low) return {
-      color: 'text-[#E65100]',
-      bg: 'bg-[#E65100]/10',
+      color: 'text-warning',
+      bg: 'bg-warning/10',
       label: 'Low',
       fill: 'progress-fill-medium',
       pct,

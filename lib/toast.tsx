@@ -38,17 +38,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }
 
   const colors: Record<ToastType, string> = {
-    success: 'bg-white border-l-4 border-l-[#2E7D32]',
-    error:   'bg-white border-l-4 border-l-[#C62828]',
-    warning: 'bg-white border-l-4 border-l-[#E65100]',
-    info:    'bg-white border-l-4 border-l-[#1565C0]',
+    success: 'bg-white border-l-4 border-l-success',
+    error:   'bg-white border-l-4 border-l-danger',
+    warning: 'bg-white border-l-4 border-l-warning',
+    info:    'bg-white border-l-4 border-l-info',
   }
 
   const iconColors: Record<ToastType, string> = {
-    success: 'text-[#2E7D32]',
-    error:   'text-[#C62828]',
-    warning: 'text-[#E65100]',
-    info:    'text-[#1565C0]',
+    success: 'text-success',
+    error:   'text-danger',
+    warning: 'text-warning',
+    info:    'text-info',
   }
 
   return (

@@ -202,7 +202,7 @@ function ShiftDetailContent() {
             .join('\n')
         : 'No discrepancies'
 
-      setSummary(`*Uptimyzas Kitchen — Shift Report*
+      setSummary(`*${getSession()?.org_name || 'Chopdesk'} — Shift Report*
 ${dateStr}
 ${openTimeStr} – ${closeTimeStr} (${durationH}h ${durationM}m)
 Staff: ${staffNames.join(', ')}

@@ -139,7 +139,7 @@ export default function MenuManagement() {
                   <button
                     onClick={() => toggleAvailability(item)}
                     className={`px-2 py-1 rounded-full t-small font-medium ${
-                      item.available ? 'bg-[#2E7D32]/10 text-[#2E7D32]' : 'bg-danger/10 text-danger'
+                      item.available ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
                     }`}
                   >
                     {item.available ? 'Available' : 'Unavailable'}
@@ -147,7 +147,7 @@ export default function MenuManagement() {
                   <div className="flex gap-1">
                     <button
                       onClick={() => openModal(item)}
-                      className="text-[#1565C0] min-h-0 min-w-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#1565C0]/10"
+                      className="text-info min-h-0 min-w-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-info/10"
                     >
                       <Edit size={16} />
                     </button>
@@ -194,7 +194,7 @@ export default function MenuManagement() {
                         <button
                           onClick={() => toggleAvailability(item)}
                           className={`px-2 py-1 rounded-full t-small font-medium min-w-[80px] ${
-                            item.available ? 'bg-[#2E7D32]/10 text-[#2E7D32]' : 'bg-danger/10 text-danger'
+                            item.available ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
                           }`}
                         >
                           {item.available ? 'Available' : 'Unavailable'}
@@ -204,7 +204,7 @@ export default function MenuManagement() {
                         <div className="flex justify-center gap-2">
                           <button
                             onClick={() => openModal(item)}
-                            className="text-[#1565C0] min-h-0 min-w-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#1565C0]/10 transition-colors"
+                            className="text-info min-h-0 min-w-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-info/10 transition-colors"
                           >
                             <Edit size={16} />
                           </button>

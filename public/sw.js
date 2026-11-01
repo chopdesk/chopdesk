@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'uptimyzas-kitchen-v3'
+const CACHE_NAME = 'chopdesk-v1'
 const urlsToCache = ['/']
 
 self.addEventListener('install', (event) => {

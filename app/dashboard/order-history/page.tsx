@@ -99,8 +99,8 @@ export default function OrderHistoryPage() {
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'Total Orders', value: orders.length, color: 'text-primary' },
-            { label: 'Total Revenue', value: `₦${totalRevenue.toLocaleString()}`, color: 'text-[#2E7D32]' },
-            { label: 'Avg Order', value: `₦${Math.round(avgOrder).toLocaleString()}`, color: 'text-[#1565C0]' },
+            { label: 'Total Revenue', value: `₦${totalRevenue.toLocaleString()}`, color: 'text-success' },
+            { label: 'Avg Order', value: `₦${Math.round(avgOrder).toLocaleString()}`, color: 'text-info' },
           ].map(({ label, value, color }) => (
             <div key={label} className="card text-center">
               <p className="t-small text-text-muted">{label}</p>
@@ -240,7 +240,7 @@ export default function OrderHistoryPage() {
                   {selectedOrder.change_given > 0 && (
                     <div className="flex justify-between">
                       <p className="t-small text-text-muted">Change Given</p>
-                      <p className="t-mono text-[#2E7D32]">₦{selectedOrder.change_given.toLocaleString()}</p>
+                      <p className="t-mono text-success">₦{selectedOrder.change_given.toLocaleString()}</p>
                     </div>
                   )}
                 </div>

@@ -38,11 +38,11 @@ export default function ReceiptPage() {
         {/* Success icon */}
         <div className="text-center mb-5">
           <div
-            className={`w-16 h-16 rounded-full bg-[#2E7D32]/10 flex items-center justify-center mx-auto mb-3 transition-transform duration-300 ease-out ${
+            className={`w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-3 transition-transform duration-300 ease-out ${
               iconVisible ? 'scale-100' : 'scale-0'
             }`}
           >
-            <CheckCircle size={36} className="text-[#2E7D32]" />
+            <CheckCircle size={36} className="text-success" />
           </div>
           <h1 className="t-h1 text-text-primary">Order Confirmed</h1>
           <p className="t-small text-text-muted mt-1">#{order.orderId.slice(-8)}</p>
@@ -83,7 +83,7 @@ export default function ReceiptPage() {
           {order.changeGiven > 0 && (
             <div className="flex justify-between">
               <p className="t-small text-text-muted">Change</p>
-              <p className="t-mono text-[#2E7D32] font-medium">₦{order.changeGiven.toLocaleString()}</p>
+              <p className="t-mono text-success font-medium">₦{order.changeGiven.toLocaleString()}</p>
             </div>
           )}
         </div>

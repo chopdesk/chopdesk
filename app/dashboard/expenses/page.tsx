@@ -178,12 +178,12 @@ export default function ExpensesPage() {
                   {/* Method icon */}
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
                     expense.payment_method === 'cash'
-                      ? 'bg-[#2E7D32]/10'
-                      : 'bg-[#1565C0]/10'
+                      ? 'bg-success/10'
+                      : 'bg-info/10'
                   }`}>
                     {expense.payment_method === 'cash'
-                      ? <Banknote size={18} className="text-[#2E7D32]" />
-                      : <Smartphone size={18} className="text-[#1565C0]" />
+                      ? <Banknote size={18} className="text-success" />
+                      : <Smartphone size={18} className="text-info" />
                     }
                   </div>
 

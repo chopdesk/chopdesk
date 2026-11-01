@@ -325,12 +325,12 @@ export default function PaymentPage() {
               />
               {amountReceived && (
                 <div className={`mt-3 p-3 rounded-[10px] flex justify-between items-center ${
-                  change >= 0 ? 'bg-[#2E7D32]/10' : 'bg-danger/10'
+                  change >= 0 ? 'bg-success/10' : 'bg-danger/10'
                 }`}>
-                  <p className={`t-label ${change >= 0 ? 'text-[#2E7D32]' : 'text-danger'}`}>
+                  <p className={`t-label ${change >= 0 ? 'text-success' : 'text-danger'}`}>
                     {change >= 0 ? 'Change' : 'Short by'}
                   </p>
-                  <p className={`t-mono font-semibold ${change >= 0 ? 'text-[#2E7D32]' : 'text-danger'}`}>
+                  <p className={`t-mono font-semibold ${change >= 0 ? 'text-success' : 'text-danger'}`}>
                     ₦{Math.abs(change).toLocaleString()}
                   </p>
                 </div>
@@ -363,9 +363,9 @@ export default function PaymentPage() {
                 />
               </div>
               <div className={`p-3 rounded-[10px] flex justify-between items-center ${
-                splitOk ? 'bg-[#2E7D32]/10' : 'bg-bg-subtle border border-border'
+                splitOk ? 'bg-success/10' : 'bg-bg-subtle border border-border'
               }`}>
-                <p className={`t-label ${splitOk ? 'text-[#2E7D32]' : 'text-text-muted'}`}>
+                <p className={`t-label ${splitOk ? 'text-success' : 'text-text-muted'}`}>
                   {splitOk ? '✓ Amounts match' : 'Remaining'}
                 </p>
                 {!splitOk && (

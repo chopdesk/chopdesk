@@ -3,9 +3,11 @@
 
 @theme {
   /* Colors */
-  --color-primary: #8B0000;
-  --color-primary-hover: #A50000;
-  --color-primary-light: #FFF0F0;
+  --color-primary: #12566B;
+  --color-primary-hover: #0E4457;
+  --color-primary-light: #E6F1F4;
+  --color-accent: #F5A623;
+  --color-accent-light: #FEF5E3;
   --color-bg: #FFFFFF;
   --color-bg-subtle: #F5F5F5;
   --color-bg-card: #FFFFFF;
@@ -314,7 +316,7 @@ textarea {
 
 .input-base:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.08);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
   font-size: 16px;
 }
 
@@ -705,19 +707,6 @@ body {
 /* Re-enable for elements that intentionally need rubber-band effect */
 .allow-rubber-band {
   overscroll-behavior-y: auto;
-}
-
-/* Ensure chat page takes full screen without any interference */
-.chat-fullscreen {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1000;
-  background: #ECE5DD;
 }
 
 /* Hide the mobile bottom bar on desktop widths.

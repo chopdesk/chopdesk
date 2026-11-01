@@ -121,7 +121,7 @@ export default function DashboardPage() {
 
           <div className="bg-white rounded-xl p-4 shadow-sm">
             <div className="flex items-center justify-between">
-              <TrendingUp size={20} className="text-[#2E7D32]" />
+              <TrendingUp size={20} className="text-success" />
               <span className="text-xs text-text-secondary">Today</span>
             </div>
             <p className="text-2xl font-bold text-text-primary mt-1">₦{stats.todayRevenue.toLocaleString()}</p>
