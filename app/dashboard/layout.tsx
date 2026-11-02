@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import {
-  LayoutDashboard, ShoppingBag, Package, Clock,
+  Home, ShoppingBag, Package, Clock,
   Utensils, Receipt, History, Users,
-  LogOut, Menu, X,
+  LogOut, Menu, X, ChevronRight, ChevronLeft,
 } from 'lucide-react'
 import { signOut, getSession } from '@/lib/auth'
 import AuthGuard from '@/components/AuthGuard'
@@ -14,26 +14,30 @@ import ConnectionStatus from '@/components/ConnectionStatus'
 import UpdateBanner, { UpdateButton } from '@/components/UpdateManager'
 import Logo from '@/components/brand/Logo'
 
-const SPRING = 'cubic-bezier(0.3, 1.2, 0.5, 1)'
 const SHIFT_START = '/dashboard/shift'
 const SHIFT_CLOSE = '/dashboard/shift/close'
 
-const bottomNav = [
-  { name: 'Home', icon: LayoutDashboard, path: '/dashboard' },
-  { name: 'Orders', icon: ShoppingBag, path: '/dashboard/orders' },
-  { name: 'Stock', icon: Package, path: '/dashboard/stock' },
-  { name: 'Shift', icon: Clock, path: SHIFT_START },
-]
+const HOME = { name: 'Home', icon: Home, path: '/dashboard' }
+const ORDERS = { name: 'Orders', icon: ShoppingBag, path: '/dashboard/orders' }
+const STOCK = { name: 'Stock', icon: Package, path: '/dashboard/stock' }
+const SHIFT = { name: 'Shift', icon: Clock, path: SHIFT_START }
+const MENU = { name: 'Menu Items', icon: Utensils, path: '/dashboard/menu' }
+const TEAM = { name: 'Team', icon: Users, path: '/dashboard/team' }
+const ORDER_HISTORY = { name: 'Order History', icon: Receipt, path: '/dashboard/order-history' }
+const SHIFT_HISTORY = { name: 'Shift History', icon: History, path: '/dashboard/shifts' }
 
-// Standing config and history live in the drawer; shift actions live in the main tabs
-const drawerItems = [
-  { name: 'Menu Items', icon: Utensils, path: '/dashboard/menu' },
-  { name: 'Order History', icon: Receipt, path: '/dashboard/order-history' },
-  { name: 'Shift History', icon: History, path: '/dashboard/shifts' },
-  { name: 'Team', icon: Users, path: '/dashboard/team' },
-]
+// Phone bottom bar: Orders sits in the middle because it is the most used screen
+const tabs = [HOME, STOCK, ORDERS, SHIFT]
 
-const allItems = [...bottomNav, ...drawerItems]
+// Sidebar and the "More" sheet share the same groups
+const groups: { label: string | null; items: typeof tabs }[] = [
+  { label: null, items: [HOME, ORDERS, STOCK, SHIFT] },
+  { label: 'Manage', items: [MENU, TEAM] },
+  { label: 'Records', items: [ORDER_HISTORY, SHIFT_HISTORY] },
+]
+const moreGroups = groups.slice(1)
+const moreItems = moreGroups.flatMap((g) => g.items)
+const allItems = groups.flatMap((g) => g.items)
 
 // Pages reached from inside a flow still need a real title in the top bar
 const extraTitles: Record<string, string> = {
@@ -53,6 +57,14 @@ const parentOf: Record<string, string> = {
   '/dashboard/expenses': '/dashboard/orders',
 }
 
+// Where the back arrow goes (anything not listed goes Home)
+const backTo: Record<string, string> = {
+  '/dashboard/shifts/view': '/dashboard/shifts',
+  '/dashboard/payment': '/dashboard/orders',
+  '/dashboard/receipt': '/dashboard/orders',
+  '/dashboard/expenses': '/dashboard/orders',
+}
+
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || ''
   // trailingSlash is on, so the real path is "/dashboard/"; compare without the slash
@@ -61,11 +73,15 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [orgName, setOrgName] = useState('')
+  const [firstName, setFirstName] = useState('')
   const [pending, setPending] = useState<string | null>(null)
+  const [shiftOpen, setShiftOpen] = useState(false)
   const shiftActive = useRef<boolean | null>(null)
 
   useEffect(() => {
-    setOrgName(getSession()?.org_name || '')
+    const session = getSession()
+    setOrgName(session?.org_name || '')
+    setFirstName(session?.first_name || '')
   }, [])
 
   // The tap highlights instantly; once the route really changes, trust the route
@@ -75,7 +91,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   const refreshShift = useCallback(async () => {
     try {
-      shiftActive.current = !!(await getActiveShift())
+      const open = !!(await getActiveShift())
+      shiftActive.current = open
+      setShiftOpen(open)
     } catch {
       // keep the last known value
     }
@@ -87,16 +105,16 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   const current = pending ?? path
   const activePath = parentOf[current] ?? current
+  const inMore = moreItems.some((i) => i.path === activePath)
 
-  const sidebarIdx = allItems.findIndex((i) => i.path === activePath)
-  const bottomIdx = bottomNav.findIndex((i) => i.path === activePath)
-  const inDrawer = drawerItems.some((i) => i.path === activePath)
-  const navIdx = bottomIdx >= 0 ? bottomIdx : inDrawer ? bottomNav.length : -1
+  const isHome = path === '/dashboard'
+  const isTabRoot = tabs.some((t) => t.path === path)
+  const showBack = !isHome && !isTabRoot
+  const backHiddenOnPC = allItems.some((i) => i.path === path) // these have a sidebar link on PC
 
-  const pageTitle =
-    path === '/dashboard'
-      ? null
-      : allItems.find((i) => i.path === path)?.name || extraTitles[path] || orgName || 'Chopdesk'
+  const pageTitle = isHome
+    ? orgName || 'Chopdesk'
+    : allItems.find((i) => i.path === path)?.name || extraTitles[path] || orgName || 'Chopdesk'
 
   const navigate = (target: string) => {
     setMenuOpen(false)
@@ -126,6 +144,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     try {
       const shift = await getActiveShift()
       shiftActive.current = !!shift
+      setShiftOpen(!!shift)
       router.push(shift ? SHIFT_CLOSE : SHIFT_START)
     } catch (err) {
       console.error(err)
@@ -136,6 +155,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const handleItem = (target: string) => {
     if (target === SHIFT_START) handleShiftNav()
     else navigate(target)
+  }
+
+  const handleBack = () => {
+    router.push(backTo[path] || '/dashboard')
   }
 
   const handleLogout = async () => {
@@ -151,36 +174,42 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           <Logo size={30} nameSize={22} />
         </div>
 
-        <div className="flex-1 overflow-y-auto px-3 py-4">
-          <div className="relative flex flex-col gap-0.5">
-            <span
-              aria-hidden
-              className="absolute left-0 right-0 top-0 h-11 rounded-[10px] bg-primary/10"
-              style={{
-                transform: `translateY(${Math.max(sidebarIdx, 0) * 46}px)`,
-                opacity: sidebarIdx >= 0 ? 1 : 0,
-                transition: `transform 460ms ${SPRING}, opacity 200ms ease`,
-              }}
-            />
-            {allItems.map(({ name, icon: Icon, path: itemPath }) => {
-              const isActive = activePath === itemPath
-              return (
-                <button
-                  key={itemPath}
-                  onClick={() => handleItem(itemPath)}
-                  className={`relative z-10 flex h-11 w-full min-h-0 items-center gap-3 rounded-[10px] px-3 transition-[color,background-color,transform] duration-150 active:scale-[0.97] ${
-                    isActive
-                      ? 'text-primary'
-                      : 'text-text-secondary hover:bg-bg-subtle hover:text-text-primary'
-                  }`}
-                >
-                  <Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} />
-                  <span className="t-body font-medium">{name}</span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
+        <nav className="flex-1 overflow-y-auto px-3 py-3">
+          {groups.map((group, gi) => (
+            <div key={group.label ?? 'main'} className={gi > 0 ? 'mt-4' : ''}>
+              {group.label && (
+                <p className="t-small px-3 pb-1 font-medium uppercase tracking-wide text-text-muted">
+                  {group.label}
+                </p>
+              )}
+              <div className="flex flex-col gap-0.5">
+                {group.items.map(({ name, icon: Icon, path: itemPath }) => {
+                  const isActive = activePath === itemPath
+                  return (
+                    <button
+                      key={itemPath}
+                      onClick={() => handleItem(itemPath)}
+                      className={`relative flex h-10 w-full min-h-0 items-center gap-3 rounded-lg px-3 transition-colors duration-150 ${
+                        isActive
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-text-secondary hover:bg-bg-subtle hover:text-text-primary'
+                      }`}
+                    >
+                      <Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} />
+                      <span className="t-body font-medium">{name}</span>
+                      {itemPath === SHIFT_START && shiftOpen && (
+                        <span className="ml-auto flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-success" />
+                          <span className="t-small text-success">Open</span>
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
 
         <div className="shrink-0 border-t border-border px-3 pb-6 pt-3">
           <div className="mb-2">
@@ -188,7 +217,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           </div>
           <button
             onClick={handleLogout}
-            className="flex h-11 w-full min-h-0 items-center gap-3 rounded-[10px] px-3 text-danger transition-[background-color,transform] duration-150 hover:bg-danger/5 active:scale-[0.97]"
+            className="flex h-10 w-full min-h-0 items-center gap-3 rounded-lg px-3 text-danger transition-colors duration-150 hover:bg-danger/5"
           >
             <LogOut size={18} />
             <span className="t-body font-medium">Sign Out</span>
@@ -197,27 +226,24 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Top bar */}
-      <header className="fixed left-0 right-0 top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-white px-4 md:left-56">
-        <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+      <header className="fixed left-0 right-0 top-0 z-20 flex h-14 items-center border-b border-border bg-white px-2 md:left-56 md:px-6">
+        {showBack && (
+          <button
+            onClick={handleBack}
+            aria-label="Go back"
+            className={`mr-1 flex h-10 w-10 min-h-0 min-w-0 shrink-0 items-center justify-center rounded-full text-text-primary transition-colors duration-150 hover:bg-bg-subtle active:bg-bg-subtle ${
+              backHiddenOnPC ? 'md:hidden' : ''
+            }`}
+          >
+            <ChevronLeft size={24} strokeWidth={2} />
+          </button>
+        )}
+        <h1 className={`t-h3 truncate pr-10 text-text-primary ${showBack ? '' : 'pl-2 md:pl-0'}`}>
+          {pageTitle}
+        </h1>
+        <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
           <ConnectionStatus variant="dot" />
         </div>
-        {pageTitle ? (
-          <>
-            <button
-              onClick={() => router.back()}
-              aria-label="Go back"
-              className="flex h-9 w-9 min-h-0 min-w-0 items-center justify-center rounded-full text-text-secondary transition-[background-color,transform] duration-150 hover:bg-bg-subtle active:scale-90"
-            >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-            <p className="t-h3 text-text-primary">{pageTitle}</p>
-            <div className="w-9" />
-          </>
-        ) : (
-          <h1 className="t-brand text-primary">{orgName}</h1>
-        )}
       </header>
 
       {/* Connection banner */}
@@ -238,46 +264,49 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         className="md:hidden bottom-nav fixed bottom-0 left-0 right-0 z-20 bg-white"
         style={{ padding: '0 0 env(safe-area-inset-bottom)' }}
       >
-        <span
-          aria-hidden
-          className="pointer-events-none absolute left-0 top-0 flex w-1/5 justify-center"
-          style={{
-            transform: `translateX(${Math.max(navIdx, 0) * 100}%)`,
-            opacity: navIdx >= 0 ? 1 : 0,
-            transition: `transform 460ms ${SPRING}, opacity 200ms ease`,
-          }}
-        >
-          <span className="h-[3px] w-8 rounded-full bg-primary" />
-        </span>
-
-        {bottomNav.map(({ name, icon: Icon, path: itemPath }) => {
+        {tabs.map(({ name, icon: Icon, path: itemPath }) => {
           const isActive = activePath === itemPath
           return (
             <button
               key={itemPath}
               onClick={() => handleItem(itemPath)}
-              className={`flex h-full min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-1 transition-[color,transform] duration-150 active:scale-90 ${
+              className={`flex h-full min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 ${
                 isActive ? 'text-primary' : 'text-text-muted'
               }`}
             >
-              <Icon size={22} strokeWidth={isActive ? 2.2 : 1.8} />
-              <span className="text-[10px] font-medium">{name}</span>
+              <span
+                className={`relative flex h-8 w-14 items-center justify-center rounded-full transition-colors duration-150 ${
+                  isActive ? 'bg-primary/10' : 'bg-transparent'
+                }`}
+              >
+                <Icon size={22} strokeWidth={isActive ? 2.3 : 1.8} />
+                {itemPath === SHIFT_START && shiftOpen && (
+                  <span className="absolute right-3 top-0.5 h-2.5 w-2.5 rounded-full bg-success ring-2 ring-white" />
+                )}
+              </span>
+              <span className={`text-[11px] ${isActive ? 'font-semibold' : 'font-medium'}`}>{name}</span>
             </button>
           )
         })}
 
         <button
           onClick={() => setMenuOpen(true)}
-          className={`flex h-full min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-1 transition-[color,transform] duration-150 active:scale-90 ${
-            inDrawer ? 'text-primary' : 'text-text-muted'
+          className={`flex h-full min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 ${
+            inMore ? 'text-primary' : 'text-text-muted'
           }`}
         >
-          <Menu size={22} strokeWidth={inDrawer ? 2.2 : 1.8} />
-          <span className="text-[10px] font-medium">More</span>
+          <span
+            className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors duration-150 ${
+              inMore ? 'bg-primary/10' : 'bg-transparent'
+            }`}
+          >
+            <Menu size={22} strokeWidth={inMore ? 2.3 : 1.8} />
+          </span>
+          <span className={`text-[11px] ${inMore ? 'font-semibold' : 'font-medium'}`}>More</span>
         </button>
       </nav>
 
-      {/* Drawer overlay (always mounted so it can fade) */}
+      {/* Sheet overlay (always mounted so it can fade) */}
       <div
         className={`md:hidden fixed inset-0 z-40 bg-black/35 transition-opacity duration-300 ${
           menuOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
@@ -285,54 +314,69 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         onClick={() => setMenuOpen(false)}
       />
 
-      {/* Drawer */}
+      {/* More sheet */}
       <div
         aria-hidden={!menuOpen}
-        className={`md:hidden fixed bottom-0 left-0 right-0 z-50 rounded-t-[24px] bg-white will-change-transform transition-transform duration-[420ms] ease-[cubic-bezier(0.32,0.72,0,1)] ${
+        className={`md:hidden fixed bottom-0 left-0 right-0 z-50 rounded-t-[20px] bg-white will-change-transform transition-transform duration-[420ms] ease-[cubic-bezier(0.32,0.72,0,1)] ${
           menuOpen ? 'translate-y-0' : 'pointer-events-none translate-y-full'
         }`}
       >
         <div className="mx-auto mb-1 mt-3 h-1 w-10 rounded-full bg-border" />
 
-        <div className="flex items-center justify-between border-b border-border px-5 py-3">
-          <p className="t-h3 text-text-primary">Menu</p>
+        {/* Business header */}
+        <div className="flex items-center gap-3 px-5 py-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <span className="t-h3">{(orgName || 'C').charAt(0).toUpperCase()}</span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="t-h3 truncate text-text-primary">{orgName || 'Chopdesk'}</p>
+            {firstName && <p className="t-small truncate text-text-secondary">{firstName}</p>}
+          </div>
           <button
             onClick={() => setMenuOpen(false)}
             aria-label="Close menu"
-            className="flex h-9 w-9 min-h-0 min-w-0 items-center justify-center rounded-full text-text-muted transition-[background-color,transform] duration-150 hover:bg-bg-subtle active:scale-90"
+            className="flex h-9 w-9 min-h-0 min-w-0 items-center justify-center rounded-full text-text-muted transition-colors duration-150 hover:bg-bg-subtle active:bg-bg-subtle"
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="pb-safe grid max-h-[60vh] grid-cols-2 gap-2 overflow-y-auto px-4 py-4">
-          {drawerItems.map(({ name, icon: Icon, path: itemPath }) => {
-            const isActive = activePath === itemPath
-            return (
-              <button
-                key={itemPath}
-                onClick={() => navigate(itemPath)}
-                className={`drawer-item flex min-h-0 flex-col items-center gap-2 rounded-[14px] py-4 transition-colors ${
-                  isActive ? 'bg-primary/10 text-primary' : 'bg-bg-subtle text-text-secondary'
-                }`}
-              >
-                <Icon size={22} strokeWidth={isActive ? 2.2 : 1.8} />
-                <span className="t-small font-medium">{name}</span>
-              </button>
-            )
-          })}
+        <div className="max-h-[60vh] overflow-y-auto border-t border-border pb-2">
+          {moreGroups.map((group) => (
+            <div key={group.label}>
+              <p className="t-small px-5 pb-1 pt-4 font-medium uppercase tracking-wide text-text-muted">
+                {group.label}
+              </p>
+              {group.items.map(({ name, icon: Icon, path: itemPath }) => {
+                const isActive = activePath === itemPath
+                return (
+                  <button
+                    key={itemPath}
+                    onClick={() => navigate(itemPath)}
+                    className={`flex h-12 w-full min-h-0 items-center gap-4 px-5 text-left transition-colors duration-150 active:bg-bg-subtle ${
+                      isActive ? 'bg-primary/10 text-primary' : 'text-text-primary'
+                    }`}
+                  >
+                    <Icon size={20} strokeWidth={isActive ? 2.2 : 1.8} className={isActive ? '' : 'text-text-secondary'} />
+                    <span className="t-body flex-1 font-medium">{name}</span>
+                    <ChevronRight size={18} className="text-text-muted" />
+                  </button>
+                )
+              })}
+            </div>
+          ))}
         </div>
 
-        <div className="px-5 pb-3 pt-1">
+        <div className="border-t border-border px-5 pb-3 pt-3">
           <UpdateButton />
         </div>
-        <div className="px-5 pb-8 pt-1">
+        <div className="pb-safe px-5 pb-6">
           <button
             onClick={handleLogout}
-            className="t-label flex w-full items-center justify-center gap-2 rounded-[12px] border border-danger/20 py-3 text-danger transition-[background-color,transform] duration-150 hover:bg-danger/5 active:scale-[0.98]"
+            className="flex h-12 w-full min-h-0 items-center gap-4 text-danger transition-colors duration-150 active:bg-danger/5"
           >
-            <LogOut size={16} />
-            Sign Out
+            <LogOut size={20} />
+            <span className="t-body font-medium">Sign Out</span>
           </button>
         </div>
       </div>
