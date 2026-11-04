@@ -13,6 +13,7 @@ import { getActiveShift } from '@/lib/shift'
 import ConnectionStatus from '@/components/ConnectionStatus'
 import UpdateBanner, { UpdateButton } from '@/components/UpdateManager'
 import Logo from '@/components/brand/Logo'
+import { InstallButton } from '@/components/InstallPrompt'
 
 const SHIFT_START = '/dashboard/shift'
 const SHIFT_CLOSE = '/dashboard/shift/close'
@@ -189,10 +190,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                     <button
                       key={itemPath}
                       onClick={() => handleItem(itemPath)}
-                      className={`relative flex h-10 w-full min-h-0 items-center gap-3 rounded-lg px-3 transition-colors duration-150 ${
+                      className={`press press-flat relative flex h-10 w-full min-h-0 items-center gap-3 rounded-lg px-3 ${
                         isActive
                           ? 'bg-primary/10 text-primary'
-                          : 'text-text-secondary hover:bg-bg-subtle hover:text-text-primary'
+                          : 'text-text-secondary hover:text-text-primary'
                       }`}
                     >
                       <Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} />
@@ -213,11 +214,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
         <div className="shrink-0 border-t border-border px-3 pb-6 pt-3">
           <div className="mb-2">
-            <UpdateButton />
+            <InstallButton onAction={() => setMenuOpen(false)} />
+<UpdateButton />
           </div>
           <button
             onClick={handleLogout}
-            className="flex h-10 w-full min-h-0 items-center gap-3 rounded-lg px-3 text-danger transition-colors duration-150 hover:bg-danger/5"
+            className="press press-flat flex h-10 w-full min-h-0 items-center gap-3 rounded-lg px-3 text-danger"
           >
             <LogOut size={18} />
             <span className="t-body font-medium">Sign Out</span>
@@ -231,7 +233,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           <button
             onClick={handleBack}
             aria-label="Go back"
-            className={`mr-1 flex h-10 w-10 min-h-0 min-w-0 shrink-0 items-center justify-center rounded-full text-text-primary transition-colors duration-150 hover:bg-bg-subtle active:bg-bg-subtle ${
+            className={`mr-1 flex h-10 w-10 min-h-0 min-w-0 shrink-0 items-center justify-center rounded-full press text-text-primary ${
               backHiddenOnPC ? 'md:hidden' : ''
             }`}
           >
@@ -255,7 +257,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       <UpdateBanner />
 
       {/* Page content: rendered once for every screen size */}
-      <main className="flex-1 overflow-y-auto pb-20 pt-14 md:pb-0 md:pl-56" style={{ overscrollBehaviorY: 'contain' }}>
+      <main className="app-main flex-1 overflow-y-auto pt-14 md:pl-56" style={{ overscrollBehaviorY: 'contain' }}>
         {children}
       </main>
 
@@ -335,7 +337,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           <button
             onClick={() => setMenuOpen(false)}
             aria-label="Close menu"
-            className="flex h-9 w-9 min-h-0 min-w-0 items-center justify-center rounded-full text-text-muted transition-colors duration-150 hover:bg-bg-subtle active:bg-bg-subtle"
+            className="flex h-9 w-9 min-h-0 min-w-0 items-center justify-center press rounded-full text-text-muted"
           >
             <X size={18} />
           </button>
@@ -353,7 +355,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                   <button
                     key={itemPath}
                     onClick={() => navigate(itemPath)}
-                    className={`flex h-12 w-full min-h-0 items-center gap-4 px-5 text-left transition-colors duration-150 active:bg-bg-subtle ${
+                    className={`flex h-12 w-full min-h-0 items-center gap-4 press press-flat px-5 text-left ${
                       isActive ? 'bg-primary/10 text-primary' : 'text-text-primary'
                     }`}
                   >
@@ -368,12 +370,13 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="border-t border-border px-5 pb-3 pt-3">
-          <UpdateButton />
+          <InstallButton onAction={() => setMenuOpen(false)} />
+<UpdateButton />
         </div>
         <div className="pb-safe px-5 pb-6">
           <button
             onClick={handleLogout}
-            className="flex h-12 w-full min-h-0 items-center gap-4 text-danger transition-colors duration-150 active:bg-danger/5"
+            className="flex h-12 w-full min-h-0 press press-flat items-center gap-4 text-danger"
           >
             <LogOut size={20} />
             <span className="t-body font-medium">Sign Out</span>

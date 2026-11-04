@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { getSession } from '@/lib/auth'
 import { getActiveShift, ensureJoined, type ActiveShift } from '@/lib/shift'
 import { useToast } from '@/lib/toast'
+import NoShiftState from '@/components/NoShiftState'
 import Spinner from '@/components/Spinner'
 import { sortByAvailability } from '@/lib/menuSort'
 import { Plus, Minus, Trash2, ShoppingCart, PackagePlus, Receipt, X, ChevronDown } from 'lucide-react'
@@ -156,7 +157,7 @@ export default function OrdersPage() {
   const addToCart = (item: MenuItem) => {
     const remaining = getRemainingStock(item.id)
     if (remaining <= 0) {
-      toast(`${item.name} is out of stock`, 'warning')
+      toast(`${item.name} is out of stock. Add stock to keep selling.`, 'warning')
       return
     }
 
@@ -177,7 +178,7 @@ export default function OrdersPage() {
     if (delta > 0) {
       const remaining = getRemainingStock(itemId)
       if (remaining <= 0) {
-        toast('No more stock available', 'warning')
+        toast(`${item.name}: no more in stock. All ${item.quantity} are already in the cart.`, 'warning')
         return
       }
     }
@@ -194,7 +195,7 @@ export default function OrdersPage() {
     if (!addStockItem || !addStockQty || !activeShift) return
     const qty = parseInt(addStockQty)
     if (isNaN(qty) || qty <= 0) {
-      toast('Enter a valid quantity', 'warning')
+      toast('Enter how many to add, for example 5.', 'warning')
       return
     }
 
@@ -208,13 +209,14 @@ export default function OrdersPage() {
         })
 
       if (stockError) {
-        toast('Error updating stock: ' + stockError.message, 'error')
+        console.error(stockError)
+        toast("Couldn't add stock. Check your connection and try again.", 'error', { label: 'Retry', onClick: handleAddStock })
         setAddingStock(false)
         return
       }
 
       if (!updatedStock || updatedStock.length === 0) {
-        toast('Failed to update stock. Please try again.', 'error')
+        toast("Couldn't add stock. Try again.", 'error')
         setAddingStock(false)
         return
       }
@@ -226,7 +228,7 @@ export default function OrdersPage() {
         .order('item_name')
 
       if (refreshError) {
-        toast('Stock updated but failed to refresh display', 'warning')
+        toast("Stock was added, but the list didn't refresh. Reload the page to see it.", 'warning')
         setAddingStock(false)
         setShowAddStock(false)
         setAddStockItem(null)
@@ -241,14 +243,14 @@ export default function OrdersPage() {
         setStockMap(stockMapData)
       }
 
-      toast(`${qty} ${addStockItem.unit}(s) added to ${addStockItem.item_name}`, 'success')
+      toast(`Added ${qty} to ${addStockItem.item_name}.`, 'success')
       setShowAddStock(false)
       setAddStockItem(null)
       setAddStockQty('')
 
     } catch (err) {
       console.error('Stock increment failed:', err)
-      toast('Failed to update stock. Please try again.', 'error')
+      toast("Couldn't add stock. Try again.", 'error')
     } finally {
       setAddingStock(false)
     }
@@ -279,23 +281,7 @@ export default function OrdersPage() {
 
   // No shift is currently open
   if (noShift) {
-    return (
-      <div className="min-h-screen bg-bg-subtle flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg p-6 text-center max-w-sm">
-          <div className="text-4xl mb-4">🕐</div>
-          <h2 className="text-lg font-semibold mb-2">No shift is open</h2>
-          <p className="text-gray-500 mb-4">
-            Someone needs to start a shift before orders can be taken.
-          </p>
-          <button
-            onClick={() => router.push('/dashboard/shift')}
-            className="bg-primary text-white px-6 py-2 rounded-lg w-full"
-          >
-            Go to Dashboard
-          </button>
-        </div>
-      </div>
-    )
+    return <NoShiftState message="Someone needs to start a shift before orders can be taken." />
   }
 
   if (error) {
@@ -393,7 +379,7 @@ export default function OrdersPage() {
               key={item.id}
               onClick={() => addToCart(item)}
               disabled={outOfStock}
-              className={`bg-white rounded-xl p-4 text-left shadow-sm border transition-all duration-150 active:scale-95 menu-item ${
+              className={`press bg-white rounded-xl p-4 text-left shadow-sm border ${
                 justAdded ? 'scale-105 border-primary shadow-md' : ''
               } ${
                 outOfStock ? 'opacity-50 cursor-not-allowed' : inCart ? 'border-primary shadow-md' : 'border-gray-200'
@@ -417,13 +403,13 @@ export default function OrdersPage() {
 
       {/* Cart Bar — always mounted, slides up/down instead of popping in */}
       <div
-        className={`fixed bottom-[68px] left-0 right-0 p-4 bg-white border-t shadow-lg z-30 transition-transform duration-200 ease-out ${
+        className={`fixed bottom-[var(--bottom-nav-h)] left-0 right-0 md:bottom-0 md:left-56 p-4 bg-white border-t shadow-lg z-30 transition-transform duration-200 ease-out ${
           cartCount > 0 ? 'translate-y-0' : 'translate-y-full pointer-events-none'
         }`}
       >
         <button
           onClick={() => setShowCart(true)}
-          className="w-full bg-primary text-white py-4 rounded-xl flex justify-between items-center px-4 active:scale-98 transition-transform"
+          className="press w-full bg-primary text-white py-4 rounded-xl flex justify-between items-center px-4"
         >
           <span className="flex items-center gap-2">
             <ShoppingCart size={20} />
@@ -454,14 +440,14 @@ export default function OrdersPage() {
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => updateQuantity(item.id, -1)}
-                      className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center active:scale-95"
+                      className="press w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
                     >
                       {item.quantity === 1 ? <Trash2 size={14} /> : <Minus size={14} />}
                     </button>
                     <span className="w-8 text-center">{item.quantity}</span>
                     <button
                       onClick={() => updateQuantity(item.id, 1)}
-                      className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center active:scale-95"
+                      className="press w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center"
                     >
                       <Plus size={14} />
                     </button>
@@ -481,7 +467,7 @@ export default function OrdersPage() {
                   setShowCart(false)
                   router.push('/dashboard/payment')
                 }}
-                className="w-full bg-primary text-white py-3 rounded-xl font-medium active:scale-98 transition-transform"
+                className="press w-full bg-primary text-white py-3 rounded-xl font-medium"
               >
                 Proceed to Payment
               </button>
@@ -515,7 +501,7 @@ export default function OrdersPage() {
                     setAddStockItem(null)
                     setAddStockQty('')
                   }}
-                  className="text-text-muted min-h-0 min-w-0 w-9 h-9 flex items-center justify-center rounded-full hover:bg-bg-subtle"
+                  className="press text-text-muted min-h-0 min-w-0 w-9 h-9 flex items-center justify-center rounded-full"
                 >
                   <X size={18} />
                 </button>
@@ -533,7 +519,7 @@ export default function OrdersPage() {
                     <button
                       key={row.id}
                       onClick={() => setAddStockItem(row)}
-                      className="w-full flex justify-between items-center py-3.5 min-h-0 text-left list-item"
+                      className="w-full flex justify-between items-center py-3.5 min-h-0 text-left press press-flat"
                     >
                       <div>
                         <p className="t-body text-text-primary font-medium">{row.item_name}</p>

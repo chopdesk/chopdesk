@@ -184,286 +184,6 @@ textarea {
   min-height: 48px;
 }
 
-/* ── BUTTONS ────────────────────────────────────── */
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  background-color: var(--color-primary);
-  color: white;
-  font-family: var(--font-body);
-  font-size: var(--text-label);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  padding: 0 24px;
-  height: 48px;
-  border-radius: var(--radius-default);
-  transition: background-color 0.15s, transform 0.1s;
-  cursor: pointer;
-  white-space: nowrap;
-  position: relative;
-  overflow: hidden;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  user-select: none;
-}
-
-.btn-primary:hover {
-  background-color: var(--color-primary-hover);
-}
-
-.btn-primary:active {
-  transform: scale(0.97);
-}
-
-.btn-primary:active::after {
-  width: 200%;
-  height: 200%;
-}
-
-.btn-primary::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
-  transform: translate(-50%, -50%);
-  transition: width 0.3s, height 0.3s;
-}
-
-.btn-primary:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  background-color: white;
-  color: var(--color-text-primary);
-  font-family: var(--font-body);
-  font-size: var(--text-label);
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  padding: 0 20px;
-  height: 48px;
-  border-radius: var(--radius-default);
-  border: 1.5px solid var(--color-border);
-  transition: border-color 0.15s, transform 0.1s;
-  cursor: pointer;
-  white-space: nowrap;
-  position: relative;
-  overflow: hidden;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  user-select: none;
-}
-
-.btn-secondary:hover {
-  border-color: var(--color-border-strong);
-}
-
-.btn-secondary:active {
-  transform: scale(0.97);
-}
-
-.btn-secondary:active::after {
-  width: 200%;
-  height: 200%;
-}
-
-.btn-secondary::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.05);
-  transform: translate(-50%, -50%);
-  transition: width 0.3s, height 0.3s;
-}
-
-.btn-secondary:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* ── INPUTS ─────────────────────────────────────── */
-.input-base {
-  width: 100%;
-  height: 48px;
-  padding: 0 14px;
-  border-radius: var(--radius-sm);
-  border: 1.5px solid var(--color-border);
-  background-color: white;
-  color: var(--color-text-primary);
-  font-family: var(--font-body);
-  font-size: 16px;
-  font-weight: var(--weight-body);
-  transition: border-color 0.15s;
-  outline: none;
-}
-
-.input-base:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
-  font-size: 16px;
-}
-
-.input-base::placeholder {
-  color: var(--color-text-muted);
-}
-
-/* ── CARDS ──────────────────────────────────────── */
-.card {
-  background-color: white;
-  border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 16px;
-  transition: border-color 0.2s ease;
-}
-
-.card:active {
-  transform: scale(0.98);
-  transition: transform 0.1s ease;
-}
-
-/* ── NAVIGATION ─────────────────────────────────── */
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 68px;
-  background-color: white;
-  border-top: 1.5px solid var(--color-border);
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  padding: 0 8px;
-  padding-bottom: env(safe-area-inset-bottom);
-  z-index: 10;
-}
-
-.bottom-nav button:active {
-  transform: translateY(2px);
-  transition: transform 0.05s ease;
-}
-
-.top-bar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 56px;
-  background-color: white;
-  border-bottom: 1.5px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  z-index: 10;
-}
-
-.top-bar button:active {
-  transform: scale(0.95);
-  transition: transform 0.05s ease;
-}
-
-/* ── PROGRESS BARS ──────────────────────────────── */
-.progress-bar {
-  height: 5px;
-  border-radius: var(--radius-full);
-  background-color: var(--color-border);
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  border-radius: var(--radius-full);
-  transition: width 0.4s ease;
-}
-
-.progress-fill-high   { background-color: var(--color-success); }
-.progress-fill-medium { background-color: var(--color-warning); }
-.progress-fill-low    { background-color: var(--color-danger);  }
-
-
-/* ── SCROLLBAR ──────────────────────────────────── */
-::-webkit-scrollbar {
-  width: 0px;
-  height: 0px;
-}
-
-/* ── SAFE AREA ──────────────────────────────────── */
-.pb-safe {
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-/* ── SAFE AREA UTILITIES ──────────────────────────────── */
-/* For elements that need to respect notches and home indicators */
-
-.safe-top {
-  padding-top: env(safe-area-inset-top);
-  margin-top: env(safe-area-inset-top);
-}
-
-.safe-bottom {
-  padding-bottom: env(safe-area-inset-bottom);
-  margin-bottom: env(safe-area-inset-bottom);
-}
-
-.safe-left {
-  padding-left: env(safe-area-inset-left);
-  margin-left: env(safe-area-inset-left);
-}
-
-.safe-right {
-  padding-right: env(safe-area-inset-right);
-  margin-right: env(safe-area-inset-right);
-}
-
-/* For fixed position elements */
-.fixed-safe-top {
-  top: max(0px, env(safe-area-inset-top));
-}
-
-.fixed-safe-bottom {
-  bottom: max(0px, env(safe-area-inset-bottom));
-}
-
-/* For header/top bars */
-.top-bar-safe {
-  padding-top: max(0px, env(safe-area-inset-top));
-}
-
-/* For bottom navigation */
-.bottom-nav-safe {
-  padding-bottom: max(0px, env(safe-area-inset-bottom));
-}
-
-/* ── PWA INSTALL BUTTON ──────────────────────────────── */
-.pwa-install-button {
-  bottom: calc(68px + 16px);
-}
-
-/* Adjust for devices with taller bottom nav areas */
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
-  .pwa-install-button {
-    bottom: calc(68px + 16px + env(safe-area-inset-bottom));
-  }
-}
-
 /* ── TOUCH ACTIVE STATES ──────────────────────────────── */
 /* Removes default tap highlight on mobile */
 button,
@@ -479,12 +199,6 @@ select,
   touch-action: manipulation;
 }
 
-/* Scale effect for menu items in orders page */
-.menu-item:active {
-  transform: scale(0.97);
-  transition: transform 0.05s ease;
-}
-
 /* Better focus states for accessibility */
 button:focus-visible,
 a:focus-visible,
@@ -493,33 +207,11 @@ a:focus-visible,
   outline-offset: 2px;
 }
 
-/* Active state for drawer items */
-.drawer-item:active {
-  transform: scale(0.98);
-  background-color: var(--color-bg-subtle);
-  transition: transform 0.05s ease;
-}
-
-/* Active state for filter tabs */
-.filter-tab:active {
-  transform: translateY(1px);
-  transition: transform 0.05s ease;
-}
-
 /* Prevent text selection during rapid taps */
 button,
 [role="button"] {
   user-select: none;
   -webkit-user-select: none;
-}
-
-/* Improve touch feedback for list items */
-.list-item {
-  transition: background-color 0.1s ease;
-}
-
-.list-item:active {
-  background-color: var(--color-bg-subtle);
 }
 
 /* Improve touch feedback for table rows */
@@ -545,15 +237,9 @@ select:focus {
 
 /* Hover effects for desktop (only on devices that support hover) */
 @media (hover: hover) {
-  .btn-primary:hover {
-    transform: translateY(-1px);
-    transition: transform 0.2s ease;
-  }
+  /* Buttons do not lift on hover: the .press system (below) owns their feel. */
   
-  .btn-secondary:hover {
-    transform: translateY(-1px);
-    transition: transform 0.2s ease;
-  }
+
   
   .card:hover {
     border-color: var(--color-primary);
@@ -847,3 +533,173 @@ html[data-auth-enter] .auth-enter {
   .auth-caret::after { animation: none; }
 }
 /* END AUTH PANEL */
+/* -- BOTTOM NAV SIZE ------------------------------ */
+/* 68px of tappable space plus the iPhone home-indicator inset. Pages that sit above the nav use this. */
+:root {
+  --bottom-nav-h: calc(68px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Page content clears the bottom nav on phones; PC has a sidebar instead */
+.app-main {
+  padding-bottom: calc(var(--bottom-nav-h) + 12px);
+}
+
+@media (min-width: 768px) {
+  .app-main {
+    padding-bottom: 0;
+  }
+}
+
+
+/* -- MOTION TOKENS ------------------------------------------ */
+/* Easing curves live in the Tailwind theme, so they work as utilities: ease-spring, ease-standard ... */
+@theme {
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);      /* small overshoot: things that settle */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);           /* MD3 standard: most state changes */
+  --ease-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1);    /* MD3 emphasized decelerate: things entering */
+  --ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);          /* MD3 emphasized accelerate: things leaving */
+}
+
+/* Durations, press depth and state-layer strength. Change here, the whole app follows. */
+:root {
+  --dur-press: 100ms;
+  --dur-fast: 150ms;
+  --dur-medium: 300ms;
+  --dur-release: 450ms;
+  --dur-slow: 500ms;
+
+  --press-scale: 0.97;
+  --state-hover: 0.08;
+  --state-press: 0.12;
+}
+
+/* -- PRESS BEHAVIOUR ---------------------------------------- */
+/* One mechanism for everything tappable: .press (any element), .btn-primary, .btn-secondary.
+   Sinks a little and springs back, with a faint tint on hover and press. The tint colour is
+   --state-layer (defaults to the element's own text colour). All numbers come from the tokens above. */
+@layer components {
+  .press,
+  .btn-primary,
+  .btn-secondary {
+    position: relative;
+    isolation: isolate;
+    transition: transform var(--dur-release) var(--ease-spring), scale var(--dur-release) var(--ease-spring), background-color var(--dur-fast) var(--ease-standard), border-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+  }
+
+  .press::before,
+  .btn-primary::before,
+  .btn-secondary::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background: var(--state-layer, currentColor);
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease-standard);
+  }
+
+  .press:not(:disabled):active,
+  .btn-primary:not(:disabled):active,
+  .btn-secondary:not(:disabled):active {
+    transform: scale(var(--press-scale));
+    transition-duration: var(--dur-press);
+    transition-timing-function: ease-out;
+  }
+
+  .press:not(:disabled):active::before,
+  .btn-primary:not(:disabled):active::before,
+  .btn-secondary:not(:disabled):active::before {
+    opacity: var(--state-press);
+  }
+
+  @media (hover: hover) {
+    .press:not(:disabled):hover::before,
+    .btn-primary:not(:disabled):hover::before,
+    .btn-secondary:not(:disabled):hover::before {
+      opacity: var(--state-hover);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .press:not(:disabled):active,
+    .btn-primary:not(:disabled):active,
+    .btn-secondary:not(:disabled):active {
+      transform: none;
+    }
+  }
+
+  /* -- Button looks (size, colour, type) -- */
+  .btn-primary,
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 48px;
+    border-radius: var(--radius-default);
+    font-family: var(--font-body);
+    font-size: var(--text-label);
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .btn-primary:disabled,
+  .btn-secondary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    --state-layer: #000;
+    background-color: var(--color-primary);
+    color: white;
+    font-weight: 600;
+    padding: 0 24px;
+  }
+
+  .btn-secondary {
+    background-color: white;
+    color: var(--color-text-primary);
+    font-weight: 500;
+    padding: 0 20px;
+    border: 1.5px solid var(--color-border);
+    transition: transform var(--dur-release) var(--ease-spring), border-color var(--dur-fast) var(--ease-standard);
+  }
+
+  @media (hover: hover) {
+    .btn-secondary:not(:disabled):hover {
+      border-color: var(--color-border-strong);
+    }
+  }
+}
+
+/* -- PRESS VARIANTS ----------------------------------------- */
+/* Tint only, no sink: for full-width rows and nav items, where shrinking looks wrong */
+.press-flat {
+  --press-scale: 1;
+}
+
+/* Bottom bar: the icon pill sinks when its tab is pressed */
+.bottom-nav button > span:first-child {
+  transition:
+    transform var(--dur-release) var(--ease-spring),
+    background-color var(--dur-fast) var(--ease-standard);
+}
+
+.bottom-nav button:active > span:first-child {
+  transform: scale(var(--press-scale));
+  transition-duration: var(--dur-press);
+  transition-timing-function: ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bottom-nav button:active > span:first-child {
+    transform: none;
+  }
+}

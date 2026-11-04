@@ -86,7 +86,7 @@ export default function ShiftsHistoryPage() {
       setShifts(enriched)
     } catch (err: any) {
       console.error(err)
-      toast('Could not load shift history: ' + err.message, 'error')
+      toast("Couldn't load shift history. Check your connection and try again.", 'error', { label: 'Retry', onClick: init })
     } finally {
       setLoading(false)
     }

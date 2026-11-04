@@ -157,7 +157,7 @@ export default function OrderHistoryPage() {
             orders.map((order) => (
               <div
                 key={order.id}
-                className="card cursor-pointer active:scale-[0.99] transition-transform"
+                className="card press press-flat cursor-pointer"
                 onClick={() => setSelectedOrder(order)}
               >
                 <div className="flex justify-between items-start mb-2">

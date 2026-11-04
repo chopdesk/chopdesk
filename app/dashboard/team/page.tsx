@@ -33,7 +33,7 @@ export default function TeamPage() {
     load(s)
       .catch((err) => {
         console.error(err)
-        toast('Could not load the team: ' + (err instanceof Error ? err.message : 'unknown error'), 'error')
+        toast("Couldn't load your team. Check your connection and try again.", 'error')
       })
       .finally(() => setLoading(false))
   }, [router])
@@ -84,9 +84,9 @@ export default function TeamPage() {
     setCreating(true)
     const result = await createInvite(session.org_id)
     if (result.error || !result.token) {
-      toast('Could not create the invite: ' + (result.error || 'unknown error'), 'error')
+      console.error(result.error); toast("Couldn't create the invite. Check your connection and try again.", 'error', { label: 'Retry', onClick: handleCreateInvite })
     } else {
-      toast('Invite link created', 'success')
+      toast('Invite created. Copy it or share it on WhatsApp.', 'success')
       try {
         await loadInvites(session.org_id)
       } catch (err) {
@@ -99,9 +99,9 @@ export default function TeamPage() {
   const copyLink = async (token: string) => {
     try {
       await navigator.clipboard.writeText(linkFor(token))
-      toast('Link copied', 'success')
+      toast('Link copied. Paste it into WhatsApp or a message.', 'success')
     } catch {
-      toast('Could not copy. Press and hold the link to copy it.', 'warning')
+      toast("Couldn't copy. Press and hold the link to copy it.", 'warning')
     }
   }
 
@@ -114,7 +114,7 @@ export default function TeamPage() {
     if (!session) return
     const { error } = await supabase.from('invites').delete().eq('id', id)
     if (error) {
-      toast('Could not revoke the invite: ' + error.message, 'error')
+      console.error(error); toast("Couldn't revoke that invite. Try again.", 'error')
       return
     }
     toast('Invite revoked', 'info')
@@ -133,7 +133,7 @@ export default function TeamPage() {
       .eq('id', membershipId)
     setRemoveConfirm(null)
     if (error) {
-      toast('Could not remove this person: ' + error.message, 'error')
+      console.error(error); toast("Couldn't remove this person. Try again.", 'error')
       return
     }
     toast('Removed from the team', 'info')

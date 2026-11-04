@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { getSession } from '@/lib/auth'
 import { getActiveShift, type ActiveShift } from '@/lib/shift'
 import { useToast } from '@/lib/toast'
+import NoShiftState from '@/components/NoShiftState'
 import Spinner from '@/components/Spinner'
 import { Activity } from 'lucide-react'
 
@@ -23,6 +24,7 @@ export default function StockBoard() {
   const router = useRouter()
   const toast = useToast()
   const [loading, setLoading] = useState(true)
+  const [noShift, setNoShift] = useState(false)
   const [stockItems, setStockItems] = useState<StockRow[]>([])
   const [activeShift, setActiveShift] = useState<ActiveShift | null>(null)
   const [thresholds, setThresholds] = useState({ high: 30, low: 10 })
@@ -59,8 +61,8 @@ export default function StockBoard() {
       const shift = await getActiveShift()
 
       if (!shift) {
-        toast('No active shift. Please start a shift first.', 'warning')
-        router.push('/dashboard/shift')
+        setNoShift(true)
+        setLoading(false)
         return
       }
 
@@ -70,7 +72,7 @@ export default function StockBoard() {
       setLoading(false)
     } catch (err: any) {
       console.error(err)
-      toast('Could not load shift status: ' + err.message, 'error')
+      toast("Couldn't load your stock. Check your connection.", 'error', { label: 'Retry', onClick: checkActiveShift })
       setLoading(false)
     }
   }
@@ -192,6 +194,9 @@ export default function StockBoard() {
   const lowCount      = stockItems.filter(i => getStockStatus(remainingQty(i), i.opening_qty).label === 'Low').length
   const criticalCount = stockItems.filter(i => ['Critical', 'No Stock'].includes(getStockStatus(remainingQty(i), i.opening_qty).label)).length
 
+  if (!loading && noShift) {
+    return <NoShiftState message="Stock is counted shift by shift. Start a shift to see what is in stock and record sales." />
+  }
   if (loading) {
     return <Spinner fullScreen />
   }

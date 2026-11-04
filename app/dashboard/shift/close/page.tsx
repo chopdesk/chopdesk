@@ -144,7 +144,7 @@ export default function ShiftClosePage() {
 
     } catch (err: any) {
       console.error(err)
-      toast('Could not load shift data: ' + err.message, 'error')
+      toast("Couldn't load this shift. Check your connection and try again.", 'error', { label: 'Retry', onClick: init })
       setLoading(false)
     }
   }
@@ -277,7 +277,7 @@ ${discrepancyLines}
 
     } catch (err: any) {
       console.error(err)
-      toast('Could not close the shift: ' + err.message, 'error')
+      toast(err.message === 'This shift was already closed by someone else' ? 'This shift was already closed by someone else.' : "Couldn't close the shift. Check your connection and try again.", 'error')
     } finally {
       setSubmitting(false)
     }
@@ -287,9 +287,9 @@ ${discrepancyLines}
     if (!summary) return
     try {
       await navigator.clipboard.writeText(summary)
-      toast('Summary copied', 'success')
+      toast('Summary copied. Paste it into WhatsApp.', 'success')
     } catch {
-      toast('Could not copy — select and copy the text manually', 'warning')
+      toast("Couldn't copy. Select the text and copy it by hand.", 'warning')
     }
   }
 
@@ -326,7 +326,7 @@ ${discrepancyLines}
           <pre className="p-4 text-sm whitespace-pre-wrap font-sans">{summary}</pre>
         </div>
 
-        <div className="fixed bottom-[68px] left-0 right-0 p-4 bg-gradient-to-t from-bg-subtle via-bg-subtle to-transparent pt-8 z-20">
+        <div className="fixed bottom-[var(--bottom-nav-h)] left-0 right-0 md:bottom-0 md:left-56 p-4 bg-gradient-to-t from-bg-subtle via-bg-subtle to-transparent pt-8 z-20">
           <div className="max-w-lg mx-auto flex gap-3">
             <button
               onClick={handleCopy}
@@ -386,7 +386,7 @@ ${discrepancyLines}
         ))}
       </div>
 
-      <div className="fixed bottom-[68px] left-0 right-0 p-4 bg-gradient-to-t from-bg-subtle via-bg-subtle to-transparent pt-8 z-20">
+      <div className="fixed bottom-[var(--bottom-nav-h)] left-0 right-0 md:bottom-0 md:left-56 p-4 bg-gradient-to-t from-bg-subtle via-bg-subtle to-transparent pt-8 z-20">
         <button
           onClick={handleCloseShift}
           disabled={submitting}

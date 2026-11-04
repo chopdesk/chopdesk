@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { GeistSans } from 'geist/font/sans'
 import './globals.css'
-import PWAInstall from './pwa-install/page'
+import InstallPrompt from '@/components/InstallPrompt'
 import { ToastProvider } from '@/lib/toast'
 import { brand } from '@/lib/brand'
 
@@ -44,7 +44,7 @@ export default function RootLayout({
       <body className={`${GeistSans.variable} font-body`}>
         <ToastProvider>
           {children}
-          <PWAInstall />
+          <InstallPrompt />
         </ToastProvider>
       </body>
     </html>

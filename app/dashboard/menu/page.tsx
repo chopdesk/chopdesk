@@ -58,11 +58,11 @@ export default function MenuManagement() {
 
     if (editingItem) {
       const { error } = await supabase.from('menu_items').update(itemData).eq('id', editingItem.id)
-      if (error) { toast('Error updating item: ' + error.message, 'error'); return }
+      if (error) { console.error(error); toast("Couldn't save your changes. Check your connection and try again.", 'error'); return }
       toast('Item updated', 'success')
     } else {
       const { error } = await supabase.from('menu_items').insert({ ...itemData, org_id: getSession()!.org_id })
-      if (error) { toast('Error creating item: ' + error.message, 'error'); return }
+      if (error) { console.error(error); toast("Couldn't add the item. Check your connection and try again.", 'error'); return }
       toast('Item created', 'success')
     }
 
@@ -82,7 +82,7 @@ export default function MenuManagement() {
   const deleteItem = async (id: string) => {
     const { error } = await supabase.from('menu_items').delete().eq('id', id)
     if (error) {
-      toast('Error deleting item: ' + error.message, 'error')
+      console.error(error); toast("Couldn't delete the item. Try again.", 'error')
     } else {
       toast('Item deleted', 'info')
       fetchMenuItems()
@@ -147,13 +147,13 @@ export default function MenuManagement() {
                   <div className="flex gap-1">
                     <button
                       onClick={() => openModal(item)}
-                      className="text-info min-h-0 min-w-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-info/10"
+                      className="press text-info min-h-0 min-w-0 w-8 h-8 flex items-center justify-center rounded-full"
                     >
                       <Edit size={16} />
                     </button>
                     <button
                       onClick={() => setDeleteConfirm(item.id)}
-                      className="text-danger min-h-0 min-w-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-danger/10"
+                      className="press text-danger min-h-0 min-w-0 w-8 h-8 flex items-center justify-center rounded-full"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -204,13 +204,13 @@ export default function MenuManagement() {
                         <div className="flex justify-center gap-2">
                           <button
                             onClick={() => openModal(item)}
-                            className="text-info min-h-0 min-w-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-info/10 transition-colors"
+                            className="press text-info min-h-0 min-w-0 w-8 h-8 flex items-center justify-center rounded-full"
                           >
                             <Edit size={16} />
                           </button>
                           <button
                             onClick={() => setDeleteConfirm(item.id)}
-                            className="text-danger min-h-0 min-w-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-danger/10 transition-colors"
+                            className="press text-danger min-h-0 min-w-0 w-8 h-8 flex items-center justify-center rounded-full"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -231,7 +231,7 @@ export default function MenuManagement() {
             <div className="w-10 h-1 rounded-full bg-border mx-auto mb-5" />
             <div className="flex justify-between items-center mb-4">
               <p className="t-h2 text-text-primary">{editingItem ? 'Edit Item' : 'Add New Item'}</p>
-              <button onClick={closeModal} className="text-text-muted min-h-0 min-w-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-bg-subtle">
+              <button onClick={closeModal} className="press text-text-muted min-h-0 min-w-0 w-8 h-8 flex items-center justify-center rounded-full">
                 <X size={18} />
               </button>
             </div>

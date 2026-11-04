@@ -80,7 +80,7 @@ export default function DashboardPage() {
       })
     } catch (error) {
       console.error('Error loading dashboard:', error)
-      toast('Failed to load dashboard data', 'error')
+      toast("Couldn't load your dashboard. Check your connection and try again.", 'error', { label: 'Retry', onClick: loadDashboard })
     } finally {
       setLoading(false)
     }
@@ -150,7 +150,7 @@ export default function DashboardPage() {
         {/* Shift Control — adapts to whether a shift is currently open */}
         <button
           onClick={() => router.push(activeShift ? '/dashboard/shift/close' : '/dashboard/shift')}
-          className={`w-full p-4 rounded-xl text-left transition-all active:scale-95 hover:shadow-lg ${
+          className={`press w-full p-4 rounded-xl text-left hover:shadow-lg ${
             activeShift
               ? 'bg-white border border-danger text-danger'
               : 'bg-white border border-primary text-primary'
@@ -175,7 +175,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => router.push('/dashboard/orders')}
-            className="p-4 rounded-xl text-left bg-primary text-white hover:shadow-lg active:scale-95 transition-all"
+            className="press p-4 rounded-xl text-left bg-primary text-white hover:shadow-lg"
           >
             <p className="font-semibold">Take Order</p>
             <p className="text-sm opacity-80">Start a new order</p>
@@ -183,7 +183,7 @@ export default function DashboardPage() {
 
           <button
             onClick={() => router.push('/dashboard/stock')}
-            className="p-4 rounded-xl text-left bg-white border border-primary text-primary hover:shadow-lg active:scale-95 transition-all"
+            className="press p-4 rounded-xl text-left bg-white border border-primary text-primary hover:shadow-lg"
           >
             <p className="font-semibold">Manage Stock</p>
             <p className="text-sm opacity-80">View and update stock</p>

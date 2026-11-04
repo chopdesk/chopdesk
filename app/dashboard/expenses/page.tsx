@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { getSession } from '@/lib/auth'
 import { getActiveShift, type ActiveShift } from '@/lib/shift'
 import { useToast } from '@/lib/toast'
+import NoShiftState from '@/components/NoShiftState'
 import Spinner from '@/components/Spinner'
 import { Plus, Trash2, X, Banknote, Smartphone } from 'lucide-react'
 
@@ -21,6 +22,7 @@ export default function ExpensesPage() {
   const router = useRouter()
   const toast = useToast()
   const [loading, setLoading] = useState(true)
+  const [noShift, setNoShift] = useState(false)
   const [session, setSession] = useState<any>(null)
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [activeShift, setActiveShift] = useState<ActiveShift | null>(null)
@@ -51,8 +53,8 @@ export default function ExpensesPage() {
     try {
       const shift = await getActiveShift()
       if (!shift) {
-        toast('No active shift. Please open a shift first.', 'warning')
-        router.replace('/dashboard')
+        setNoShift(true)
+        setLoading(false)
         return
       }
       setActiveShift(shift)
@@ -60,7 +62,7 @@ export default function ExpensesPage() {
       setLoading(false)
     } catch (err: any) {
       console.error(err)
-      toast('Could not verify the active shift', 'error')
+      toast("Couldn't check your shift. Check your connection and try again.", 'error')
       router.replace('/dashboard')
     }
   }
@@ -90,7 +92,8 @@ export default function ExpensesPage() {
     })
 
     if (error) {
-      toast('Error adding expense: ' + error.message, 'error')
+      console.error(error)
+      toast("Couldn't save the expense. Check your connection and tap Save again.", 'error')
     } else {
       toast('Expense added', 'success')
       fetchExpenses(activeShift.id)
@@ -103,7 +106,8 @@ export default function ExpensesPage() {
     if (!activeShift) return
     const { error } = await supabase.from('expenses').delete().eq('id', id)
     if (error) {
-      toast('Error deleting expense', 'error')
+      console.error(error)
+      toast("Couldn't delete that expense. Try again.", 'error')
     } else {
       toast('Expense deleted', 'info')
       fetchExpenses(activeShift.id)
@@ -120,6 +124,9 @@ export default function ExpensesPage() {
   const cashTotal     = expenses.filter(e => e.payment_method === 'cash').reduce((s, e) => s + e.amount, 0)
   const transferTotal = expenses.filter(e => e.payment_method === 'transfer').reduce((s, e) => s + e.amount, 0)
 
+  if (!loading && noShift) {
+    return <NoShiftState message="Expenses are recorded against a shift. Start a shift to log what you spend." />
+  }
   if (loading) {
     return <Spinner fullScreen />
   }
@@ -228,7 +235,7 @@ export default function ExpensesPage() {
               <p className="t-h2 text-text-primary">Add Expense</p>
               <button
                 onClick={closeModal}
-                className="text-text-muted min-h-0 min-w-0 w-9 h-9 flex items-center justify-center rounded-full hover:bg-bg-subtle"
+                className="press text-text-muted min-h-0 min-w-0 w-9 h-9 flex items-center justify-center rounded-full"
               >
                 <X size={18} />
               </button>

@@ -66,7 +66,7 @@ export default function ShiftGatePage() {
 
     } catch (err: any) {
       console.error(err)
-      toast('Could not load shift status: ' + err.message, 'error')
+      toast("Couldn't check the shift. Check your connection and try again.", 'error', { label: 'Retry', onClick: init })
       setLoading(false)
     }
   }
@@ -80,7 +80,7 @@ export default function ShiftGatePage() {
       router.push('/dashboard/orders')
     } catch (err: any) {
       console.error(err)
-      toast('Could not join the shift: ' + err.message, 'error')
+      toast("Couldn't join the shift. Try again.", 'error', { label: 'Retry', onClick: handleJoin })
     }
   }
 
@@ -136,7 +136,7 @@ export default function ShiftGatePage() {
 
     } catch (err: any) {
       console.error(err)
-      toast('Could not start the shift: ' + err.message, 'error')
+      toast("Couldn't start the shift. Check your connection and tap Start again.", 'error')
       setSubmitting(false)
     }
   }
@@ -206,7 +206,7 @@ export default function ShiftGatePage() {
         ))}
       </div>
 
-      <div className="fixed bottom-[68px] left-0 right-0 p-4 bg-gradient-to-t from-bg-subtle via-bg-subtle to-transparent pt-8 z-20">
+      <div className="fixed bottom-[var(--bottom-nav-h)] left-0 right-0 md:bottom-0 md:left-56 p-4 bg-gradient-to-t from-bg-subtle via-bg-subtle to-transparent pt-8 z-20">
         <button
           onClick={handleStartShift}
           disabled={submitting}

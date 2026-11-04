@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getSession } from '@/lib/auth'
 import { getActiveShift, type ActiveShift } from '@/lib/shift'
-import { useToast } from '@/lib/toast'
+import { useAlert, useToast } from '@/lib/toast'
 import Spinner from '@/components/Spinner'
 import { Banknote, Smartphone, ArrowLeftRight, CheckCircle2 } from 'lucide-react'
 
@@ -26,6 +26,7 @@ const PAYMENT_METHODS = [
 export default function PaymentPage() {
   const router = useRouter()
   const toast  = useToast()
+  const showAlert = useAlert()
   const [isRouterReady, setIsRouterReady] = useState(false)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
@@ -80,14 +81,14 @@ export default function PaymentPage() {
       try {
         const shift = await getActiveShift()
         if (!shift) {
-          toast('No shift is currently open', 'warning')
+          toast('No shift is open right now. Start a shift to take payment.', 'warning')
           navigate('/dashboard/orders', { replace: true })
           return
         }
         setActiveShift(shift)
       } catch (err: any) {
         console.error(err)
-        toast('Could not verify the active shift', 'error')
+        toast("Couldn't check your shift. Check your connection and try again.", 'error')
         navigate('/dashboard/orders', { replace: true })
         return
       }
@@ -106,19 +107,19 @@ export default function PaymentPage() {
 
   const handleConfirmOrder = async () => {
     if (!activeShift) {
-      toast('No active shift found', 'error')
+      toast('No open shift. Start a shift before taking payment.', 'warning')
       return
     }
 
     if (paymentMethod === 'cash') {
       const received = parseFloat(amountReceived)
       if (isNaN(received) || received < total) {
-        toast('Amount received is less than the total', 'warning')
+        toast(isNaN(received) ? 'Enter the amount the customer gave you.' : `Amount received is ₦${(total - received).toLocaleString()} short. Enter at least ₦${total.toLocaleString()}.`, 'warning')
         return
       }
     }
     if (paymentMethod === 'split' && !splitOk) {
-      toast('Cash + Transfer must equal the total amount', 'warning')
+      toast(`Cash and transfer must add up to ₦${total.toLocaleString()}. ${splitDiff > 0 ? '₦' + splitDiff.toLocaleString() + ' to go.' : '₦' + Math.abs(splitDiff).toLocaleString() + ' too much.'}`, 'warning')
       return
     }
 
@@ -134,7 +135,7 @@ export default function PaymentPage() {
       .in('item_id', cart.map(i => i.id))
 
     if (stockFetchError || !stockRows) {
-      toast('Could not verify stock before completing the order', 'error')
+      toast("Couldn't check stock. Check your connection and try again.", 'error', { label: 'Retry', onClick: handleConfirmOrder })
       setProcessing(false)
       return
     }
@@ -145,11 +146,11 @@ export default function PaymentPage() {
     })
 
     if (insufficient.length > 0) {
-      insufficient.forEach(item => {
-        const stockRow = stockRows.find(s => s.item_id === item.id)
-        const available = stockRow?.quantity ?? 0
-        toast(`${item.name}: only ${available} left`, 'warning')
+      const lines = insufficient.map(item => {
+        const available = stockRows.find(s => s.item_id === item.id)?.quantity ?? 0
+        return available === 0 ? `${item.name} is out of stock` : `${item.name}: only ${available} left`
       })
+      showAlert({ title: 'Not enough stock', message: `${lines.join('. ')}. Adjust the order and try again.`, tone: 'warning', actionLabel: 'OK' })
       setProcessing(false)
       return
     }
@@ -195,7 +196,8 @@ export default function PaymentPage() {
       .single()
 
     if (orderError) {
-      toast('Error saving order: ' + orderError.message, 'error')
+      console.error(orderError)
+      showAlert({ title: "Order wasn't saved", message: 'This order was not recorded and stock was not changed. Check your connection and try again.', actionLabel: 'OK' })
       setProcessing(false)
       return
     }
@@ -228,12 +230,8 @@ export default function PaymentPage() {
     )
 
     const failures = results.filter(r => !r.ok)
-    if (failures.length > 0) {
-      failures.forEach(f => toast(`${f.item.name}: ${f.reason}`, 'error'))
-      setProcessing(false)
-      return
-    }
-
+    // The order row exists now, so the receipt always opens. Staying on this
+    // page would let a second tap save the same order twice.
     localStorage.removeItem('current_order_cart')
     localStorage.setItem('last_order', JSON.stringify({
       orderId:        orderData.id,
@@ -248,6 +246,10 @@ export default function PaymentPage() {
     setProcessing(false)
     setSuccess(true)
     navigate('/dashboard/receipt', { replace: true })
+
+    if (failures.length > 0) {
+      showAlert({ title: "Order saved, but stock wasn't updated", message: `The receipt is ready. Ask the owner to check stock for: ${failures.map(f => f.item.name).join(', ')}.`, tone: 'warning', actionLabel: 'OK' })
+    }
   }
 
   if (loading) {
@@ -297,7 +299,7 @@ export default function PaymentPage() {
               <button
                 key={key}
                 onClick={() => setPaymentMethod(key)}
-                className={`flex flex-col items-center gap-1.5 py-4 rounded-[12px] t-small font-medium transition-all active:scale-95 min-h-0 ${
+                className={`flex flex-col items-center gap-1.5 py-4 rounded-[12px] t-small font-medium press min-h-0 ${
                   paymentMethod === key
                     ? 'bg-primary text-white'
                     : 'bg-bg-subtle text-text-secondary border border-border'
@@ -381,7 +383,7 @@ export default function PaymentPage() {
       </div>
 
       {/* Sticky confirm button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-bg-subtle via-bg-subtle to-transparent pt-8 z-20">
+      <div className="fixed bottom-0 left-0 right-0 md:left-56 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-bg-subtle via-bg-subtle to-transparent pt-8 z-20">
         <button
           onClick={handleConfirmOrder}
           disabled={processing || success}
