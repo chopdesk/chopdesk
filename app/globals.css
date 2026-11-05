@@ -703,20 +703,20 @@ html[data-auth-enter] .auth-enter {
 }
 
 /* Bottom bar: the icon pill sinks when its tab is pressed */
-.bottom-nav button > span:first-child {
+.bottom-nav :is(a, button) > span:first-child {
   transition:
     transform var(--dur-release) var(--ease-spring),
     background-color var(--dur-fast) var(--ease-standard);
 }
 
-.bottom-nav button:active > span:first-child {
+.bottom-nav :is(a, button):active > span:first-child {
   transform: scale(var(--press-scale));
   transition-duration: var(--dur-press);
   transition-timing-function: ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bottom-nav button:active > span:first-child {
+  .bottom-nav :is(a, button):active > span:first-child {
     transform: none;
   }
 }

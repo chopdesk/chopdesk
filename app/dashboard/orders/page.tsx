@@ -426,7 +426,7 @@ export default function OrdersPage() {
 
       {/* Cart Bar — always mounted, slides up/down instead of popping in */}
       <div
-        className={`fixed bottom-[var(--bottom-nav-h)] left-0 right-0 md:bottom-0 md:left-56 p-4 bg-white border-t shadow-lg z-30 lg:hidden transition-transform duration-200 ease-out ${
+        className={`fixed bottom-[var(--bottom-nav-h)] left-0 right-0 md:bottom-0 md:left-16 lg:left-56 p-4 bg-white border-t shadow-lg z-30 lg:hidden transition-transform duration-200 ease-out ${
           cartCount > 0 ? 'translate-y-0' : 'translate-y-full pointer-events-none'
         }`}
       >

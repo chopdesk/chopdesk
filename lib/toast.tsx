@@ -186,7 +186,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         aria-live="polite"
         aria-label="Notifications"
         className={`pointer-events-none fixed inset-x-0 z-[100] flex flex-col items-center px-4 ${
-          inDashboard ? 'md:left-56' : ''
+          inDashboard ? 'md:left-16 lg:left-56' : ''
         }`}
         style={{
           top: inDashboard

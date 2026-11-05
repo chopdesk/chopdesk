@@ -302,7 +302,7 @@ ${discrepancyLines}
         <pre className="p-4 text-sm whitespace-pre-wrap font-sans">{summary}</pre>
       </div>
 
-      <div className="fixed bottom-[var(--bottom-nav-h)] left-0 right-0 md:bottom-0 md:left-56 p-4 bg-gradient-to-t from-bg-subtle via-bg-subtle to-transparent pt-8 z-20">
+      <div className="fixed bottom-[var(--bottom-nav-h)] left-0 right-0 md:bottom-0 md:left-16 lg:left-56 p-4 bg-gradient-to-t from-bg-subtle via-bg-subtle to-transparent pt-8 z-20">
         <div className="max-w-lg mx-auto">
           <button
             onClick={handleCopy}

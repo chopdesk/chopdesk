@@ -383,7 +383,7 @@ export default function PaymentPage() {
       </div>
 
       {/* Sticky confirm button */}
-      <div className="fixed bottom-0 left-0 right-0 md:left-56 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-bg-subtle via-bg-subtle to-transparent pt-8 z-20">
+      <div className="fixed bottom-0 left-0 right-0 md:left-16 lg:left-56 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-bg-subtle via-bg-subtle to-transparent pt-8 z-20">
         <button
           onClick={handleConfirmOrder}
           disabled={processing || success}
