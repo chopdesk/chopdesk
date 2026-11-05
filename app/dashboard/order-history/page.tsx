@@ -90,7 +90,7 @@ export default function OrderHistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-subtle pb-24">
+    <div className="min-h-full bg-bg-subtle pb-24">
       <div className="p-4 space-y-4">
 
         <h1 className="t-h1 text-text-primary">Order History</h1>

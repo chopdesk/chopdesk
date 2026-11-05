@@ -8,8 +8,9 @@ import { getActiveShift, ensureJoined, type ActiveShift } from '@/lib/shift'
 import { useToast } from '@/lib/toast'
 import NoShiftState from '@/components/NoShiftState'
 import Spinner from '@/components/Spinner'
+import OrderCart from '@/components/OrderCart'
 import { sortByAvailability } from '@/lib/menuSort'
-import { Plus, Minus, Trash2, ShoppingCart, PackagePlus, Receipt, X, ChevronDown } from 'lucide-react'
+import { ShoppingCart, PackagePlus, Receipt, X, ChevronDown } from 'lucide-react'
 
 type MenuItem = {
   id: string
@@ -286,7 +287,7 @@ export default function OrdersPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-bg-subtle flex items-center justify-center p-4">
+      <div className="min-h-full bg-bg-subtle flex items-center justify-center p-4">
         <div className="bg-white rounded-lg p-6 text-center max-w-sm">
           <div className="text-red-500 text-5xl mb-4">⚠️</div>
           <h2 className="text-lg font-semibold mb-2">Unable to load orders</h2>
@@ -303,9 +304,10 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-subtle pb-32">
+    <div className="bg-bg-subtle pb-32 lg:flex lg:h-[calc(100dvh-3.5rem)] lg:pb-0">
+      <div className="min-w-0 flex-1 lg:overflow-y-auto">
       {/* Header with Add Stock Button */}
-      <div className="bg-white border-b sticky top-0 z-10">
+      <div className="bg-white border-b sticky top-14 z-10 lg:top-0">
         <div className="px-4 py-3 flex justify-between items-center gap-2">
           <span className="text-sm font-medium text-primary flex-shrink-0">Take an Order</span>
           <div className="flex items-center gap-2 min-w-0">
@@ -367,7 +369,7 @@ export default function OrdersPage() {
       </div>
 
       {/* Menu Grid */}
-      <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div className="p-4 grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-3">
         {filteredItems.map(item => {
           const remaining = getRemainingStock(item.id)
           const outOfStock = remaining <= 0
@@ -401,9 +403,30 @@ export default function OrdersPage() {
         })}
       </div>
 
+      </div>
+
+      {/* Cart panel: always visible beside the menu on tablets (landscape) and PCs */}
+      <aside className="hidden w-[22rem] shrink-0 flex-col border-l border-border bg-white lg:flex xl:w-[24rem]">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <h2 className="t-h3 text-text-primary">Current order</h2>
+          {cartCount > 0 && (
+            <span className="t-small rounded-full bg-primary-light px-2.5 py-1 font-medium text-primary">
+              {cartCount} item{cartCount !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+        <OrderCart
+          cart={cart}
+          total={cartTotal}
+          onChangeQuantity={updateQuantity}
+          onProceed={() => router.push('/dashboard/payment')}
+          onClear={() => saveCart([])}
+        />
+      </aside>
+
       {/* Cart Bar — always mounted, slides up/down instead of popping in */}
       <div
-        className={`fixed bottom-[var(--bottom-nav-h)] left-0 right-0 md:bottom-0 md:left-56 p-4 bg-white border-t shadow-lg z-30 transition-transform duration-200 ease-out ${
+        className={`fixed bottom-[var(--bottom-nav-h)] left-0 right-0 md:bottom-0 md:left-56 p-4 bg-white border-t shadow-lg z-30 lg:hidden transition-transform duration-200 ease-out ${
           cartCount > 0 ? 'translate-y-0' : 'translate-y-full pointer-events-none'
         }`}
       >
@@ -419,73 +442,41 @@ export default function OrdersPage() {
         </button>
       </div>
 
-      {/* Cart Modal */}
+      {/* Cart Modal: bottom sheet on phones, centered dialog on larger screens. Hidden at 1024px and up, where the cart panel is always visible. */}
       {showCart && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
-          <div className="bg-white w-full rounded-t-2xl max-h-[80vh] flex flex-col modal-content">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center md:justify-center lg:hidden">
+          <div className="bg-white w-full rounded-t-2xl max-h-[80vh] flex flex-col modal-content md:max-w-md md:rounded-2xl">
             <div className="p-4 border-b flex justify-between items-center">
               <h2 className="text-lg font-semibold">Your Order</h2>
-              <button onClick={() => setShowCart(false)} className="text-gray-500">
+              <button
+                onClick={() => setShowCart(false)}
+                aria-label="Close"
+                className="press flex h-9 w-9 min-h-0 min-w-0 items-center justify-center rounded-full text-text-muted"
+              >
                 <X size={24} />
               </button>
             </div>
-
-            <div className="flex-1 overflow-auto p-4 space-y-3 modal-scroll">
-              {cart.map(item => (
-                <div key={item.id} className="flex justify-between items-center">
-                  <div>
-                    <p className="font-medium">{item.name}</p>
-                    <p className="text-sm text-gray-500">₦{item.price.toLocaleString()} each</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => updateQuantity(item.id, -1)}
-                      className="press w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
-                    >
-                      {item.quantity === 1 ? <Trash2 size={14} /> : <Minus size={14} />}
-                    </button>
-                    <span className="w-8 text-center">{item.quantity}</span>
-                    <button
-                      onClick={() => updateQuantity(item.id, 1)}
-                      className="press w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center"
-                    >
-                      <Plus size={14} />
-                    </button>
-                    <p className="w-20 text-right font-medium">₦{(item.price * item.quantity).toLocaleString()}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="p-4 border-t">
-              <div className="flex justify-between mb-4">
-                <span className="font-semibold">Total</span>
-                <span className="text-xl font-bold text-primary">₦{cartTotal.toLocaleString()}</span>
-              </div>
-              <button
-                onClick={() => {
-                  setShowCart(false)
-                  router.push('/dashboard/payment')
-                }}
-                className="press w-full bg-primary text-white py-3 rounded-xl font-medium"
-              >
-                Proceed to Payment
-              </button>
-              <button
-                onClick={() => { saveCart([]); setShowCart(false) }}
-                className="w-full text-gray-500 text-sm py-2 mt-2"
-              >
-                Clear Order
-              </button>
-            </div>
+            <OrderCart
+              cart={cart}
+              total={cartTotal}
+              onChangeQuantity={updateQuantity}
+              onProceed={() => {
+                setShowCart(false)
+                router.push('/dashboard/payment')
+              }}
+              onClear={() => {
+                saveCart([])
+                setShowCart(false)
+              }}
+            />
           </div>
         </div>
       )}
 
       {/* Add Stock Modal */}
       {showAddStock && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/40">
-          <div className="bg-white w-full rounded-t-[24px] max-h-[85vh] flex flex-col modal-content">
+        <div className="fixed inset-0 z-50 flex items-end bg-black/40 md:items-center md:justify-center">
+          <div className="bg-white w-full rounded-t-[24px] max-h-[85vh] flex flex-col modal-content md:max-w-md md:rounded-[24px]">
             <div className="px-5 pt-4 pb-3 border-b border-border flex-shrink-0">
               <div className="w-10 h-1 rounded-full bg-border mx-auto mb-4" />
               <div className="flex justify-between items-center">

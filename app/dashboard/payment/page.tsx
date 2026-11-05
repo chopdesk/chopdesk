@@ -257,7 +257,7 @@ export default function PaymentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-subtle pb-36">
+    <div className="min-h-full bg-bg-subtle pb-36">
       <div className="p-4 space-y-4">
 
         {/* Total hero */}

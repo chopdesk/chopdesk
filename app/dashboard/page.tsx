@@ -91,7 +91,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-subtle">
+    <div className="min-h-full bg-bg-subtle">
       <div className="p-4 space-y-4">
         {/* Welcome Section */}
         <div className="bg-white rounded-2xl p-4 shadow-sm">

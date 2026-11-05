@@ -32,7 +32,7 @@ export default function ReceiptPage() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-subtle flex items-center justify-center p-4">
+    <div className="min-h-full bg-bg-subtle flex items-center justify-center p-4">
       <div className="card max-w-sm w-full">
 
         {/* Success icon */}

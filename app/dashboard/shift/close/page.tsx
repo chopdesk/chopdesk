@@ -299,7 +299,7 @@ ${discrepancyLines}
 
   if (!activeShift) {
     return (
-      <div className="min-h-screen bg-bg-subtle flex items-center justify-center p-4">
+      <div className="min-h-full bg-bg-subtle flex items-center justify-center p-4">
         <div className="bg-white rounded-lg p-6 text-center max-w-sm">
           <h2 className="text-lg font-semibold mb-2">No shift is open</h2>
           <p className="text-gray-500 mb-4">There's nothing to close right now.</p>
@@ -317,7 +317,7 @@ ${discrepancyLines}
   // Shift just closed — show the read-only summary
   if (summary) {
     return (
-      <div className="min-h-screen bg-bg-subtle p-4 pb-32">
+      <div className="min-h-full bg-bg-subtle p-4 pb-32">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 max-w-lg mx-auto">
           <div className="p-4 border-b flex items-center gap-2">
             <CheckCircle2 size={20} className="text-green-600" />
@@ -348,7 +348,7 @@ ${discrepancyLines}
 
   // Shift open — physical count entry
   return (
-    <div className="min-h-screen bg-bg-subtle pb-32">
+    <div className="min-h-full bg-bg-subtle pb-32">
       <div className="bg-white border-b sticky top-0 z-10 px-4 py-4">
         <div className="flex items-center gap-2 mb-1">
           <ClipboardCheck size={20} className="text-primary" />

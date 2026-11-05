@@ -202,7 +202,7 @@ export default function StockBoard() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-subtle pb-24">
+    <div className="min-h-full bg-bg-subtle pb-24">
       <div className="p-4 space-y-4">
 
         {/* Shift info + live badge */}

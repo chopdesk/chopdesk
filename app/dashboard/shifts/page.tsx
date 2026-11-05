@@ -97,7 +97,7 @@ export default function ShiftsHistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-subtle pb-8">
+    <div className="min-h-full bg-bg-subtle pb-8">
       <div className="bg-white border-b sticky top-0 z-10 px-4 py-4">
         <span className="font-semibold">Shift History</span>
       </div>

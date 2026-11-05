@@ -255,7 +255,7 @@ ${discrepancyLines}
 
   if (notFound) {
     return (
-      <div className="min-h-screen bg-bg-subtle flex items-center justify-center p-4">
+      <div className="min-h-full bg-bg-subtle flex items-center justify-center p-4">
         <div className="bg-white rounded-lg p-6 text-center max-w-sm">
           <h2 className="text-lg font-semibold mb-2">Shift not found</h2>
           <button
@@ -271,7 +271,7 @@ ${discrepancyLines}
 
   if (notClosed) {
     return (
-      <div className="min-h-screen bg-bg-subtle flex items-center justify-center p-4">
+      <div className="min-h-full bg-bg-subtle flex items-center justify-center p-4">
         <div className="bg-white rounded-lg p-6 text-center max-w-sm">
           <h2 className="text-lg font-semibold mb-2">This shift is still open</h2>
           <p className="text-gray-500 mb-4">Close it to generate its summary.</p>
@@ -287,7 +287,7 @@ ${discrepancyLines}
   }
 
   return (
-    <div className="min-h-screen bg-bg-subtle p-4 pb-32">
+    <div className="min-h-full bg-bg-subtle p-4 pb-32">
       <button
         onClick={() => router.push('/dashboard/shifts')}
         className="flex items-center gap-1 text-sm text-text-secondary mb-3"

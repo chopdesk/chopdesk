@@ -37,7 +37,7 @@ export default function Spinner({ size = 'md', label, fullScreen = false }: Spin
 
   if (fullScreen) {
     return (
-      <div className="min-h-screen bg-bg-subtle flex items-center justify-center">
+      <div className="min-h-full bg-bg-subtle flex items-center justify-center">
         {content}
       </div>
     )

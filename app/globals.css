@@ -397,6 +397,23 @@ body {
 
 /* Hide the mobile bottom bar on desktop widths.
    Plain CSS beats Tailwind's md:hidden, so the rule has to live here. */
+/* -- BOTTOM NAV (phone) ------------------------------------- */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--bottom-nav-h);
+  background-color: white;
+  border-top: 1.5px solid var(--color-border);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 0 8px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 10;
+}
+
 @media (min-width: 768px) {
   .bottom-nav {
     display: none;
@@ -702,4 +719,70 @@ html[data-auth-enter] .auth-enter {
   .bottom-nav button:active > span:first-child {
     transform: none;
   }
+}
+
+/* -- RESTORED BASE STYLES ----------------------------------- */
+/* These were lost in the button-system cleanup but are still used across the app. */
+
+/* Cards (press feel and hover border live in their own rules) */
+.card {
+  background-color: white;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+}
+
+/* Inputs */
+.input-base {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--color-border);
+  background-color: white;
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: var(--weight-body);
+  transition: border-color 0.15s;
+  outline: none;
+}
+
+.input-base:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
+  font-size: 16px;
+}
+
+.input-base::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* Progress bars */
+.progress-bar {
+  height: 5px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-border);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.4s ease;
+}
+
+.progress-fill-high   { background-color: var(--color-success); }
+.progress-fill-medium { background-color: var(--color-warning); }
+.progress-fill-low    { background-color: var(--color-danger);  }
+
+/* Hide scrollbars (scrolling still works) */
+::-webkit-scrollbar {
+  width: 0px;
+  height: 0px;
+}
+
+/* Safe area helper */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
 }

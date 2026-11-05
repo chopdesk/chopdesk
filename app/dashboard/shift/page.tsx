@@ -147,7 +147,7 @@ export default function ShiftGatePage() {
 
   if (mode === 'join' && activeShift) {
     return (
-      <div className="min-h-screen bg-bg-subtle flex items-center justify-center p-4">
+      <div className="min-h-full bg-bg-subtle flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl p-6 text-center max-w-sm w-full shadow-sm">
           <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <Users size={26} className="text-primary" />
@@ -170,7 +170,7 @@ export default function ShiftGatePage() {
 
   // mode === 'start'
   return (
-    <div className="min-h-screen bg-bg-subtle pb-32">
+    <div className="min-h-full bg-bg-subtle pb-32">
       <div className="bg-white border-b sticky top-0 z-10 px-4 py-4">
         <div className="flex items-center gap-2 mb-1">
           <ChefHat size={20} className="text-primary" />

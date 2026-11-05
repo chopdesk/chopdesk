@@ -111,20 +111,28 @@ export default function MenuManagement() {
     return <Spinner fullScreen />
   }
 
+  // Only the owner can change the menu (the database enforces this too)
+  const isOwner = getSession()?.role === 'owner'
+
   return (
     <div className="p-4 sm:p-6 pb-28 sm:pb-28">
       <div className="flex justify-between items-center mb-6">
         <h1 className="t-h1 text-text-primary">Menu Items</h1>
-        <button onClick={() => openModal()} className="btn-primary flex items-center gap-2 whitespace-nowrap">
-          <Plus size={16} /> Add Item
-        </button>
+        {isOwner && (
+          <button onClick={() => openModal()} className="btn-primary flex items-center gap-2 whitespace-nowrap">
+            <Plus size={16} /> Add Item
+          </button>
+        )}
       </div>
+      {!isOwner && (
+        <p className="t-small text-text-secondary -mt-3 mb-5">You can see the menu here. Only the owner can change it.</p>
+      )}
 
       {/* Mobile: card list. Desktop (sm+): table */}
       <div className="sm:hidden space-y-3">
         {items.length === 0 ? (
           <div className="card text-center py-10">
-            <p className="t-body text-text-muted">No menu items yet. Tap "Add Item" to create one.</p>
+            <p className="t-body text-text-muted">No menu items yet.{isOwner ? ' Tap "Add Item" to create one.' : ''}</p>
           </div>
         ) : (
           items.map((item) => (
@@ -137,14 +145,14 @@ export default function MenuManagement() {
                 </div>
                 <div className="flex flex-col items-end gap-2 flex-shrink-0 ml-3">
                   <button
-                    onClick={() => toggleAvailability(item)}
+                    onClick={() => toggleAvailability(item)} disabled={!isOwner}
                     className={`px-2 py-1 rounded-full t-small font-medium ${
                       item.available ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
                     }`}
                   >
                     {item.available ? 'Available' : 'Unavailable'}
                   </button>
-                  <div className="flex gap-1">
+                  <div className={isOwner ? 'flex gap-1' : 'hidden'}>
                     <button
                       onClick={() => openModal(item)}
                       className="press text-info min-h-0 min-w-0 w-8 h-8 flex items-center justify-center rounded-full"
@@ -171,7 +179,7 @@ export default function MenuManagement() {
             <table className="w-full">
               <thead className="bg-bg-subtle border-b border-border">
                 <tr>
-                  {['Name', 'Category', 'Unit', 'Price (₦)', 'Status', 'Actions'].map(h => (
+                  {['Name', 'Category', 'Unit', 'Price (₦)', 'Status', ...(isOwner ? ['Actions'] : [])].map(h => (
                     <th key={h} className={`p-3 t-label text-text-secondary whitespace-nowrap ${h === 'Price (₦)' ? 'text-right' : h === 'Status' || h === 'Actions' ? 'text-center' : 'text-left'}`}>{h}</th>
                   ))}
                 </tr>
@@ -179,8 +187,8 @@ export default function MenuManagement() {
               <tbody>
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center p-8 t-body text-text-muted">
-                      No menu items yet. Click "Add Item" to create one.
+                    <td colSpan={isOwner ? 6 : 5} className="text-center p-8 t-body text-text-muted">
+                      No menu items yet.{isOwner ? ' Click "Add Item" to create one.' : ''}
                     </td>
                   </tr>
                 ) : (
@@ -192,7 +200,7 @@ export default function MenuManagement() {
                       <td className="p-3 text-right t-mono whitespace-nowrap">₦{item.price.toLocaleString()}</td>
                       <td className="p-3 text-center whitespace-nowrap">
                         <button
-                          onClick={() => toggleAvailability(item)}
+                          onClick={() => toggleAvailability(item)} disabled={!isOwner}
                           className={`px-2 py-1 rounded-full t-small font-medium min-w-[80px] ${
                             item.available ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
                           }`}
@@ -200,7 +208,7 @@ export default function MenuManagement() {
                           {item.available ? 'Available' : 'Unavailable'}
                         </button>
                        </td>
-                      <td className="p-3 text-center whitespace-nowrap">
+                      <td className={isOwner ? 'p-3 text-center whitespace-nowrap' : 'hidden'}>
                         <div className="flex justify-center gap-2">
                           <button
                             onClick={() => openModal(item)}
