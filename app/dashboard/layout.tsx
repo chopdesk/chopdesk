@@ -446,7 +446,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
       {/* More sheet */}
       <div
-        aria-hidden={!menuOpen}
+        inert={!menuOpen}
         className={`md:hidden fixed bottom-0 left-0 right-0 z-50 rounded-t-[20px] bg-white will-change-transform transition-transform duration-[420ms] ease-[cubic-bezier(0.32,0.72,0,1)] ${
           menuOpen ? 'translate-y-0' : 'pointer-events-none translate-y-full'
         }`}

@@ -307,7 +307,7 @@ export default function OrdersPage() {
     <div className="bg-bg-subtle pb-32 lg:flex lg:h-[calc(100dvh-3.5rem)] lg:pb-0">
       <div className="min-w-0 flex-1 lg:overflow-y-auto">
       {/* Header with Add Stock Button */}
-      <div className="bg-white border-b sticky top-14 z-10 lg:top-0">
+      <div className="bg-white border-b sticky top-0 z-10">
         <div className="px-4 py-3 flex justify-between items-center gap-2">
           <span className="text-sm font-medium text-primary flex-shrink-0">Take an Order</span>
           <div className="flex items-center gap-2 min-w-0">
@@ -426,7 +426,7 @@ export default function OrdersPage() {
 
       {/* Cart Bar — always mounted, slides up/down instead of popping in */}
       <div
-        className={`fixed bottom-[var(--bottom-nav-h)] left-0 right-0 md:bottom-0 md:left-16 lg:left-56 p-4 bg-white border-t shadow-lg z-30 lg:hidden transition-transform duration-200 ease-out ${
+        className={`fixed bottom-[var(--bottom-nav-h)] left-0 right-0 md:bottom-0 md:left-16 lg:left-56 p-4 bg-white border-t shadow-lg z-[5] lg:hidden transition-transform duration-200 ease-out ${
           cartCount > 0 ? 'translate-y-0' : 'translate-y-full pointer-events-none'
         }`}
       >
