@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getSession } from '@/lib/auth'
+import { getSession, type UserSession } from '@/lib/auth'
 import { getActiveShift, type ActiveShift } from '@/lib/shift'
 import { useToast } from '@/lib/toast'
 import NoShiftState from '@/components/NoShiftState'
@@ -23,7 +23,7 @@ export default function ExpensesPage() {
   const toast = useToast()
   const [loading, setLoading] = useState(true)
   const [noShift, setNoShift] = useState(false)
-  const [session, setSession] = useState<any>(null)
+  const [session, setSession] = useState<UserSession | null>(null)
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [activeShift, setActiveShift] = useState<ActiveShift | null>(null)
   const [showModal, setShowModal] = useState(false)
@@ -34,16 +34,6 @@ export default function ExpensesPage() {
     amount: '',
     payment_method: 'cash',
   })
-
-  useEffect(() => {
-    const userSession = getSession()
-    if (!userSession) {
-      router.push('/auth/login')
-      return
-    }
-    setSession(userSession)
-    checkActiveShift()
-  }, [router])
 
   // Same shift lookup every other page uses (single `shifts` table,
   // open = closed_at is null) — this page previously queried a
@@ -60,14 +50,24 @@ export default function ExpensesPage() {
       setActiveShift(shift)
       fetchExpenses(shift.id)
       setLoading(false)
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
       toast("Couldn't check your shift. Check your connection and try again.", 'error')
       router.replace('/dashboard')
     }
   }
 
-  const fetchExpenses = async (shiftId: string) => {
+  useEffect(() => {
+    const userSession = getSession()
+    if (!userSession) {
+      router.push('/auth/login')
+      return
+    }
+    setSession(userSession)
+    checkActiveShift()
+  }, [router])
+
+  async function fetchExpenses(shiftId: string) {
     const { data } = await supabase
       .from('expenses')
       .select('*')
@@ -79,7 +79,7 @@ export default function ExpensesPage() {
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!activeShift) return
+    if (!activeShift || !session) return
     setSubmitting(true)
 
     const { error } = await supabase.from('expenses').insert({
@@ -176,7 +176,7 @@ export default function ExpensesPage() {
           {expenses.length === 0 ? (
             <div className="card text-center py-12">
               <p className="t-body text-text-muted">No expenses logged yet</p>
-              <p className="t-small text-text-muted mt-1">Tap "Add Expense" to record one</p>
+              <p className="t-small text-text-muted mt-1">Tap &quot;Add Expense&quot; to record one</p>
             </div>
           ) : (
             <div className="space-y-2">

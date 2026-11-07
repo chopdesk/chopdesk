@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getSession } from '@/lib/auth'
+import { getSession, type UserSession } from '@/lib/auth'
 import { getActiveShift, type ActiveShift } from '@/lib/shift'
 import { useToast } from '@/lib/toast'
 import Spinner from '@/components/Spinner'
@@ -13,7 +13,7 @@ export default function DashboardPage() {
   const router = useRouter()
   const toast = useToast()
   const [loading, setLoading] = useState(true)
-  const [session, setSession] = useState<any>(null)
+  const [session, setSession] = useState<UserSession | null>(null)
   const [activeShift, setActiveShift] = useState<ActiveShift | null>(null)
   const [stats, setStats] = useState({
     todayOrders: 0,
@@ -21,16 +21,6 @@ export default function DashboardPage() {
     activeStaff: 0,
     lowStockItems: 0,
   })
-
-  useEffect(() => {
-    const userSession = getSession()
-    if (!userSession) {
-      router.replace('/auth/login')
-      return
-    }
-    setSession(userSession)
-    loadDashboard()
-  }, [router])
 
   const loadDashboard = async () => {
     try {
@@ -86,13 +76,23 @@ export default function DashboardPage() {
     }
   }
 
+  useEffect(() => {
+    const userSession = getSession()
+    if (!userSession) {
+      router.replace('/auth/login')
+      return
+    }
+    setSession(userSession)
+    loadDashboard()
+  }, [router])
+
   if (loading) {
     return <Spinner fullScreen />
   }
 
   return (
     <div className="min-h-full bg-bg-subtle">
-      <div className="p-4 space-y-4">
+      <div className="mx-auto w-full max-w-5xl space-y-4 p-4 md:space-y-6 md:p-6">
         {/* Welcome Section */}
         <div className="bg-white rounded-2xl p-4 shadow-sm">
           <h1 className="text-xl font-bold text-text-primary">
@@ -109,7 +109,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
           <div className="bg-white rounded-xl p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <Receipt size={20} className="text-primary" />
@@ -147,10 +147,11 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3">
         {/* Shift Control — adapts to whether a shift is currently open */}
         <button
           onClick={() => router.push(activeShift ? '/dashboard/shift/close' : '/dashboard/shift')}
-          className={`press w-full p-4 rounded-xl text-left hover:shadow-lg ${
+          className={`press col-span-2 p-4 rounded-xl text-left hover:shadow-lg lg:order-3 lg:col-span-1 ${
             activeShift
               ? 'bg-white border border-danger text-danger'
               : 'bg-white border border-primary text-primary'
@@ -166,16 +167,16 @@ export default function DashboardPage() {
 
         <button
   onClick={() => router.push('/dashboard/shifts')}
-  className="w-full p-3 rounded-xl text-center text-sm text-text-secondary border border-gray-200"
+  className="press col-span-2 rounded-xl border border-border p-3 text-center text-sm text-text-secondary lg:order-4 lg:col-span-3"
 >
   View Shift History
 </button>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="contents">
           <button
             onClick={() => router.push('/dashboard/orders')}
-            className="press p-4 rounded-xl text-left bg-primary text-white hover:shadow-lg"
+            className="press p-4 rounded-xl text-left bg-primary text-white hover:shadow-lg lg:order-1"
           >
             <p className="font-semibold">Take Order</p>
             <p className="text-sm opacity-80">Start a new order</p>
@@ -183,11 +184,12 @@ export default function DashboardPage() {
 
           <button
             onClick={() => router.push('/dashboard/stock')}
-            className="press p-4 rounded-xl text-left bg-white border border-primary text-primary hover:shadow-lg"
+            className="press p-4 rounded-xl text-left bg-white border border-primary text-primary hover:shadow-lg lg:order-2"
           >
             <p className="font-semibold">Manage Stock</p>
             <p className="text-sm opacity-80">View and update stock</p>
           </button>
+        </div>
         </div>
       </div>
     </div>

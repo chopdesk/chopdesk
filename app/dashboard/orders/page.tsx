@@ -64,15 +64,6 @@ export default function OrdersPage() {
   // Tap-confirmation animation — briefly "pops" the tapped item
   const [justAddedId, setJustAddedId] = useState<string | null>(null)
 
-  useEffect(() => {
-    const userSession = getSession()
-    if (!userSession) {
-      router.replace('/auth/login')
-      return
-    }
-    loadData()
-  }, [router])
-
   const loadData = async () => {
     try {
       setLoading(true)
@@ -131,13 +122,22 @@ export default function OrdersPage() {
       const saved = localStorage.getItem('current_order_cart')
       if (saved) setCart(JSON.parse(saved))
 
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
-      setError(err.message)
+      setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    const userSession = getSession()
+    if (!userSession) {
+      router.replace('/auth/login')
+      return
+    }
+    loadData()
+  }, [router])
 
   const saveCart = (newCart: CartItem[]) => {
     localStorage.setItem('current_order_cart', JSON.stringify(newCart))

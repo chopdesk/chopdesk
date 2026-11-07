@@ -5,9 +5,21 @@ import { useRouter } from 'next/navigation'
 import { CheckCircle } from 'lucide-react'
 import Spinner from '@/components/Spinner'
 
+type ReceiptItem = { name: string; quantity: number; price: number }
+
+type ReceiptOrder = {
+  orderId: string
+  items: ReceiptItem[]
+  total: number
+  paymentMethod: string
+  changeGiven: number
+  cashAmount: number
+  transferAmount: number
+}
+
 export default function ReceiptPage() {
   const router = useRouter()
-  const [order, setOrder] = useState<any>(null)
+  const [order, setOrder] = useState<ReceiptOrder | null>(null)
   const [iconVisible, setIconVisible] = useState(false)
 
   useEffect(() => {
@@ -50,7 +62,7 @@ export default function ReceiptPage() {
 
         {/* Items */}
         <div className="border-t border-border pt-4 mb-4 space-y-2">
-          {order.items.map((item: any, idx: number) => (
+          {order.items.map((item, idx) => (
             <div key={idx} className="flex justify-between">
               <p className="t-body text-text-secondary">{item.quantity}× {item.name}</p>
               <p className="t-mono text-text-primary">₦{(item.price * item.quantity).toLocaleString()}</p>

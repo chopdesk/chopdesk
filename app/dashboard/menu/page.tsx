@@ -36,7 +36,7 @@ export default function MenuManagement() {
     }
   }, [router])
 
-  const fetchMenuItems = async () => {
+  async function fetchMenuItems() {
     const { data, error } = await supabase
       .from('menu_items')
       .select('*')

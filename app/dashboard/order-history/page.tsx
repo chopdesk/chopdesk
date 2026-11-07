@@ -9,7 +9,7 @@ import { Search, User, Package } from 'lucide-react'
 
 type Order = {
   id: string
-  items_json: any[]
+  items_json: { item_id: string; name: string; qty: number; unit_price: number; subtotal: number }[]
   total: number
   payment_method: string
   cash_amount: number
@@ -24,6 +24,62 @@ type Staff = {
   id: string
   first_name: string
   surname: string
+}
+
+function OrderDetailBody({ order }: { order: Order }) {
+  return (
+    <div className="space-y-4">
+      <div className="bg-bg-subtle rounded-[10px] p-3">
+        <p className="t-mono text-text-muted">#{order.id.slice(-8)}</p>
+        <p className="t-small text-text-secondary mt-0.5">{new Date(order.created_at).toLocaleString('en-NG')}</p>
+        <p className="t-small text-text-secondary">Staff: {order.staff_name}</p>
+      </div>
+
+      <div>
+        <p className="t-h3 text-text-primary mb-2">Items</p>
+        <div className="space-y-2">
+          {order.items_json.map((item, idx) => (
+            <div key={idx} className="flex justify-between">
+              <p className="t-body text-text-secondary">{item.qty}&times; {item.name}</p>
+              <p className="t-mono text-text-primary">{'\u20A6'}{item.subtotal.toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+        <div className="border-t border-border mt-2 pt-2 flex justify-between">
+          <p className="t-h3 text-text-primary">Total</p>
+          <p className="t-h2 text-primary">{'\u20A6'}{order.total.toLocaleString()}</p>
+        </div>
+      </div>
+
+      <div>
+        <p className="t-h3 text-text-primary mb-2">Payment</p>
+        <div className="space-y-1.5">
+          <div className="flex justify-between">
+            <p className="t-small text-text-muted">Method</p>
+            <p className="t-label text-text-primary capitalize">{order.payment_method}</p>
+          </div>
+          {order.cash_amount > 0 && (
+            <div className="flex justify-between">
+              <p className="t-small text-text-muted">Cash</p>
+              <p className="t-mono text-text-primary">{'\u20A6'}{order.cash_amount.toLocaleString()}</p>
+            </div>
+          )}
+          {order.transfer_amount > 0 && (
+            <div className="flex justify-between">
+              <p className="t-small text-text-muted">Transfer</p>
+              <p className="t-mono text-text-primary">{'\u20A6'}{order.transfer_amount.toLocaleString()}</p>
+            </div>
+          )}
+          {order.change_given > 0 && (
+            <div className="flex justify-between">
+              <p className="t-small text-text-muted">Change Given</p>
+              <p className="t-mono text-success">{'\u20A6'}{order.change_given.toLocaleString()}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function OrderHistoryPage() {
@@ -47,12 +103,12 @@ export default function OrderHistoryPage() {
     }
   }, [router])
 
-  const fetchStaffList = async () => {
+  async function fetchStaffList() {
     const { data } = await supabase.from('profiles').select('id, first_name, surname').order('first_name')
     if (data) setStaffList(data)
   }
 
-  const fetchOrders = async () => {
+  async function fetchOrders() {
     setLoading(true)
     let query = supabase
       .from('orders')
@@ -91,7 +147,7 @@ export default function OrderHistoryPage() {
 
   return (
     <div className="min-h-full bg-bg-subtle pb-24">
-      <div className="p-4 space-y-4">
+      <div className="mx-auto w-full max-w-6xl space-y-4 p-4 md:space-y-6 md:p-6">
 
         <h1 className="t-h1 text-text-primary">Order History</h1>
 
@@ -109,10 +165,12 @@ export default function OrderHistoryPage() {
           ))}
         </div>
 
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start lg:gap-6">
+        <div className="min-w-0 space-y-4 md:space-y-6">
         {/* Filters */}
-        <div className="card space-y-3">
-          <p className="t-h3 text-text-primary">Filters</p>
-          <div className="grid grid-cols-2 gap-3">
+        <div className="card space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
+          <p className="t-h3 text-text-primary md:col-span-2">Filters</p>
+          <div className="grid grid-cols-2 gap-3 md:col-span-2">
             <div>
               <label className="block t-label text-text-primary mb-1">Start Date</label>
               <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="input-base" />
@@ -138,7 +196,7 @@ export default function OrderHistoryPage() {
               <option value="split">Split</option>
             </select>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 md:col-span-2">
             <button onClick={fetchOrders} className="btn-primary flex-1 flex items-center justify-center gap-2">
               <Search size={16} /> Search
             </button>
@@ -157,7 +215,7 @@ export default function OrderHistoryPage() {
             orders.map((order) => (
               <div
                 key={order.id}
-                className="card press press-flat cursor-pointer"
+                className={`card press press-flat cursor-pointer ${selectedOrder?.id === order.id ? 'lg:border-primary! lg:bg-primary-light!' : ''}`}
                 onClick={() => setSelectedOrder(order)}
               >
                 <div className="flex justify-between items-start mb-2">
@@ -181,12 +239,30 @@ export default function OrderHistoryPage() {
             ))
           )}
         </div>
+        </div>
+
+        {/* Detail pane: always visible beside the list on wide screens */}
+        <aside className="hidden lg:sticky lg:top-20 lg:block lg:max-h-[calc(100dvh-8rem)] lg:self-start lg:overflow-y-auto">
+          <div className="card space-y-4">
+            <p className="t-h2 text-text-primary">Order Details</p>
+            {selectedOrder ? (
+              <OrderDetailBody order={selectedOrder} />
+            ) : (
+              <div className="py-10 text-center">
+                <Package size={32} className="mx-auto mb-2 text-text-muted" />
+                <p className="t-body text-text-muted">Select an order</p>
+                <p className="t-small mt-1 text-text-muted">Tap any order on the left to see its items and payment.</p>
+              </div>
+            )}
+          </div>
+        </aside>
+        </div>
       </div>
 
       {/* Order detail modal */}
       {selectedOrder && (
-        <div className="fixed inset-0 bg-black/40 flex items-end justify-center z-50">
-          <div className="bg-white w-full max-w-md rounded-t-[20px] max-h-[85vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/40 flex items-end justify-center z-50 md:items-center lg:hidden">
+          <div className="bg-white w-full max-w-md rounded-t-[20px] max-h-[85vh] flex flex-col md:rounded-[20px]">
             <div className="px-5 pt-5 pb-4 border-b border-border flex-shrink-0">
               <div className="w-10 h-1 rounded-full bg-border mx-auto mb-4" />
               <div className="flex justify-between items-center">
@@ -195,56 +271,8 @@ export default function OrderHistoryPage() {
               </div>
             </div>
 
-            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
-              <div className="bg-bg-subtle rounded-[10px] p-3">
-                <p className="t-mono text-text-muted">#{selectedOrder.id.slice(-8)}</p>
-                <p className="t-small text-text-secondary mt-0.5">{new Date(selectedOrder.created_at).toLocaleString('en-NG')}</p>
-                <p className="t-small text-text-secondary">Staff: {selectedOrder.staff_name}</p>
-              </div>
-
-              <div>
-                <p className="t-h3 text-text-primary mb-2">Items</p>
-                <div className="space-y-2">
-                  {selectedOrder.items_json.map((item, idx) => (
-                    <div key={idx} className="flex justify-between">
-                      <p className="t-body text-text-secondary">{item.qty}× {item.name}</p>
-                      <p className="t-mono text-text-primary">₦{item.subtotal.toLocaleString()}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="border-t border-border mt-2 pt-2 flex justify-between">
-                  <p className="t-h3 text-text-primary">Total</p>
-                  <p className="t-h2 text-primary">₦{selectedOrder.total.toLocaleString()}</p>
-                </div>
-              </div>
-
-              <div>
-                <p className="t-h3 text-text-primary mb-2">Payment</p>
-                <div className="space-y-1.5">
-                  <div className="flex justify-between">
-                    <p className="t-small text-text-muted">Method</p>
-                    <p className="t-label text-text-primary capitalize">{selectedOrder.payment_method}</p>
-                  </div>
-                  {selectedOrder.cash_amount > 0 && (
-                    <div className="flex justify-between">
-                      <p className="t-small text-text-muted">Cash</p>
-                      <p className="t-mono text-text-primary">₦{selectedOrder.cash_amount.toLocaleString()}</p>
-                    </div>
-                  )}
-                  {selectedOrder.transfer_amount > 0 && (
-                    <div className="flex justify-between">
-                      <p className="t-small text-text-muted">Transfer</p>
-                      <p className="t-mono text-text-primary">₦{selectedOrder.transfer_amount.toLocaleString()}</p>
-                    </div>
-                  )}
-                  {selectedOrder.change_given > 0 && (
-                    <div className="flex justify-between">
-                      <p className="t-small text-text-muted">Change Given</p>
-                      <p className="t-mono text-success">₦{selectedOrder.change_given.toLocaleString()}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+            <div className="overflow-y-auto flex-1 px-5 py-4">
+              <OrderDetailBody order={selectedOrder} />
             </div>
 
             <div className="px-5 py-4 border-t border-border flex-shrink-0">

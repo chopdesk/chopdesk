@@ -38,7 +38,7 @@ export default function TeamPage() {
       .finally(() => setLoading(false))
   }, [router])
 
-  const load = async (s: UserSession) => {
+  async function load(s: UserSession) {
     const { data: rows, error } = await supabase
       .from('memberships')
       .select('id, user_id, role')

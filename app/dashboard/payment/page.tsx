@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getSession } from '@/lib/auth'
+import { getSession, type UserSession } from '@/lib/auth'
 import { getActiveShift, type ActiveShift } from '@/lib/shift'
 import { useAlert, useToast } from '@/lib/toast'
 import Spinner from '@/components/Spinner'
@@ -31,7 +31,7 @@ export default function PaymentPage() {
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
   const [success, setSuccess] = useState(false)
-  const [session, setSession] = useState<any>(null)
+  const [session, setSession] = useState<UserSession | null>(null)
   const [activeShift, setActiveShift] = useState<ActiveShift | null>(null)
   const [cart, setCart] = useState<CartItem[]>([])
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'transfer' | 'split'>('cash')
@@ -46,7 +46,7 @@ export default function PaymentPage() {
   // because the order succeeded or because a guard kicked you out.
   const navigate = useCallback((path: string, opts?: { replace?: boolean }) => {
     if (isRouterReady) {
-      opts?.replace ? router.replace(path) : router.push(path)
+      if (opts?.replace) { router.replace(path) } else { router.push(path) }
     } else {
       window.location.href = path
     }
@@ -86,7 +86,7 @@ export default function PaymentPage() {
           return
         }
         setActiveShift(shift)
-      } catch (err: any) {
+      } catch (err) {
         console.error(err)
         toast("Couldn't check your shift. Check your connection and try again.", 'error')
         navigate('/dashboard/orders', { replace: true })
@@ -106,6 +106,7 @@ export default function PaymentPage() {
   const splitDiff = total - splitSum
 
   const handleConfirmOrder = async () => {
+    if (!session) return
     if (!activeShift) {
       toast('No open shift. Start a shift before taking payment.', 'warning')
       return

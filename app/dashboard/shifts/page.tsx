@@ -22,10 +22,6 @@ export default function ShiftsHistoryPage() {
   const [loading, setLoading] = useState(true)
   const [shifts, setShifts] = useState<ShiftListItem[]>([])
 
-  useEffect(() => {
-    init()
-  }, [])
-
   const init = async () => {
     const userSession = getSession()
     if (!userSession) {
@@ -84,13 +80,17 @@ export default function ShiftsHistoryPage() {
       )
 
       setShifts(enriched)
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
       toast("Couldn't load shift history. Check your connection and try again.", 'error', { label: 'Retry', onClick: init })
     } finally {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    init()
+  }, [])
 
   if (loading) {
     return <Spinner fullScreen />

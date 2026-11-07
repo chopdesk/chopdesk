@@ -52,10 +52,6 @@ export default function ShiftClosePage() {
   const [submitting, setSubmitting] = useState(false)
   const [summary, setSummary] = useState<string | null>(null)
 
-  useEffect(() => {
-    init()
-  }, [])
-
   const init = async () => {
     const userSession = getSession()
     if (!userSession) {
@@ -142,12 +138,16 @@ export default function ShiftClosePage() {
 
       setLoading(false)
 
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
       toast("Couldn't load this shift. Check your connection and try again.", 'error', { label: 'Retry', onClick: init })
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    init()
+  }, [])
 
   const buildSummary = (closedAt: string, discrepancies: Discrepancy[]) => {
     if (!activeShift) return ''
@@ -275,9 +275,9 @@ ${discrepancyLines}
 
       setSummary(buildSummary(closedShift.closed_at, discrepancies))
 
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
-      toast(err.message === 'This shift was already closed by someone else' ? 'This shift was already closed by someone else.' : "Couldn't close the shift. Check your connection and try again.", 'error')
+      toast(err instanceof Error && err.message === 'This shift was already closed by someone else' ? 'This shift was already closed by someone else.' : "Couldn't close the shift. Check your connection and try again.", 'error')
     } finally {
       setSubmitting(false)
     }
@@ -302,7 +302,7 @@ ${discrepancyLines}
       <div className="min-h-full bg-bg-subtle flex items-center justify-center p-4">
         <div className="bg-white rounded-lg p-6 text-center max-w-sm">
           <h2 className="text-lg font-semibold mb-2">No shift is open</h2>
-          <p className="text-gray-500 mb-4">There's nothing to close right now.</p>
+          <p className="text-gray-500 mb-4">There&apos;s nothing to close right now.</p>
           <button
             onClick={() => router.push('/dashboard/shift')}
             className="bg-primary text-white px-6 py-2 rounded-lg w-full"
@@ -355,7 +355,7 @@ ${discrepancyLines}
           <span className="font-semibold">Close Shift — Stock Count</span>
         </div>
         <p className="text-sm text-gray-500">
-          Count what's physically left of each item. Leave blank if it
+          Count what&apos;s physically left of each item. Leave blank if it
           matches what the app expects.
         </p>
       </div>

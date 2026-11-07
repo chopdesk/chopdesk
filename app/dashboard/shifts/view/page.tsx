@@ -42,10 +42,6 @@ function ShiftDetailContent() {
   const [notClosed, setNotClosed] = useState(false)
   const [summary, setSummary] = useState<string | null>(null)
 
-  useEffect(() => {
-    init()
-  }, [shiftId])
-
   const init = async () => {
     const userSession = getSession()
     if (!userSession) {
@@ -232,12 +228,16 @@ ${discrepancyLines}
 
       setLoading(false)
 
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
       toast("Couldn't load this shift. Check your connection and try again.", 'error', { label: 'Retry', onClick: init })
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    init()
+  }, [shiftId])
 
   const handleCopy = async () => {
     if (!summary) return

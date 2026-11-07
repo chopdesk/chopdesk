@@ -199,11 +199,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const handleItem = (target: string) => {
-    if (target === SHIFT_START) handleShiftNav()
-    else navigate(target)
-  }
-
   // Real links: the browser can prefetch them. Shift keeps its own smart routing.
   const handleLink = (e: React.MouseEvent, target: string) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return

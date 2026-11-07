@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import { getSession } from '@/lib/auth'
 import { getActiveShift, type ActiveShift } from '@/lib/shift'
 import { useToast } from '@/lib/toast'
@@ -32,20 +33,7 @@ export default function StockBoard() {
 
   // Use a ref to track if we've already set up the subscription
   const subscriptionSetupDone = useRef<boolean>(false)
-
-  useEffect(() => {
-    const userSession = getSession()
-    if (!userSession) {
-      router.replace('/auth/login')
-      return
-    }
-    fetchThresholds()
-    checkActiveShift()
-
-    return () => {
-      subscriptionSetupDone.current = false
-    }
-  }, [])
+  const channelRef = useRef<RealtimeChannel | null>(null)
 
   const fetchThresholds = async () => {
     const { data } = await supabase.from('settings').select('key, value')
@@ -70,12 +58,26 @@ export default function StockBoard() {
       await fetchStockData(shift.id)
       setupRealtimeSubscription(shift.id)
       setLoading(false)
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
       toast("Couldn't load your stock. Check your connection.", 'error', { label: 'Retry', onClick: checkActiveShift })
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    const userSession = getSession()
+    if (!userSession) {
+      router.replace('/auth/login')
+      return
+    }
+    fetchThresholds()
+    checkActiveShift()
+
+    return () => {
+      subscriptionSetupDone.current = false
+    }
+  }, [])
 
   const fetchStockData = async (shiftId: string) => {
     const { data } = await supabase
@@ -93,14 +95,14 @@ export default function StockBoard() {
   const setupRealtimeSubscription = (shiftId: string) => {
     // Prevent multiple setups
     if (subscriptionSetupDone.current) {
-      console.log('Subscription already set up, skipping')
+      // Already subscribed, nothing to do
       return
     }
 
-    console.log(`Setting up realtime subscription for shift: ${shiftId}`)
+    // Start live stock updates for this shift
 
     // Create a unique channel name
-    const channelName = `stock-${shiftId}-${Date.now()}`
+    const channelName = `stock-${shiftId}-${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`
 
     const channel = supabase
       .channel(channelName)
@@ -125,7 +127,7 @@ export default function StockBoard() {
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          console.log('✅ Successfully subscribed to stock updates')
+          // Live stock updates are on
           subscriptionSetupDone.current = true
         } else if (status === 'CHANNEL_ERROR') {
           console.error('❌ Channel error, will retry in 5 seconds')
@@ -137,17 +139,17 @@ export default function StockBoard() {
       })
 
     // Store channel for cleanup
-    ;(window as any).__stockChannel = channel
+    channelRef.current = channel
   }
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      const channel = (window as any).__stockChannel
+      const channel = channelRef.current
       if (channel) {
-        console.log('Cleaning up subscription')
+        // Stop listening when leaving the page
         supabase.removeChannel(channel)
-        ;(window as any).__stockChannel = null
+        channelRef.current = null
         subscriptionSetupDone.current = false
       }
     }
@@ -203,11 +205,11 @@ export default function StockBoard() {
 
   return (
     <div className="min-h-full bg-bg-subtle pb-24">
-      <div className="p-4 space-y-4">
+      <div className="mx-auto w-full max-w-5xl space-y-4 p-4 md:space-y-6 md:p-6">
 
         {/* Shift info + live badge */}
-        <div className="bg-primary rounded-[18px] p-5 text-white">
-          <div className="flex justify-between items-start">
+        <div className="bg-primary rounded-[18px] p-5 text-white md:flex md:items-center md:justify-between md:gap-8 md:p-6">
+          <div className="flex justify-between items-start md:flex-1">
             <div>
               <p className="t-small text-white/60 uppercase tracking-widest mb-1">Active Shift</p>
               <p className="t-h1 text-white">
@@ -228,7 +230,7 @@ export default function StockBoard() {
           </div>
 
           {/* Summary row */}
-          <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-white/20">
+          <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-white/20 md:mt-0 md:min-w-[17rem] md:border-l md:border-t-0 md:pl-8 md:pt-0">
             {[
               { label: 'Good',     value: goodCount,     color: 'text-white' },
               { label: 'Low',      value: lowCount,      color: 'text-white/70' },
@@ -257,7 +259,7 @@ export default function StockBoard() {
             <p className="t-small text-text-muted mt-1">Stock is set when a shift is opened</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid gap-3 md:grid-cols-2 md:gap-4 xl:grid-cols-3">
             {stockItems.map((item) => {
               const remaining = remainingQty(item)
               const sold = soldQty(item)

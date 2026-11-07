@@ -30,10 +30,6 @@ export default function ShiftGatePage() {
   const [openingQty, setOpeningQty] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
 
-  useEffect(() => {
-    init()
-  }, [])
-
   const init = async () => {
     const userSession = getSession()
     if (!userSession) {
@@ -64,12 +60,16 @@ export default function ShiftGatePage() {
       setMode('start')
       setLoading(false)
 
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
       toast("Couldn't check the shift. Check your connection and try again.", 'error', { label: 'Retry', onClick: init })
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    init()
+  }, [])
 
   const handleJoin = async () => {
     const userSession = getSession()
@@ -78,7 +78,7 @@ export default function ShiftGatePage() {
     try {
       await ensureJoined(activeShift.id, userSession.id)
       router.push('/dashboard/orders')
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
       toast("Couldn't join the shift. Try again.", 'error', { label: 'Retry', onClick: handleJoin })
     }
@@ -134,7 +134,7 @@ export default function ShiftGatePage() {
 
       router.push('/dashboard/orders')
 
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
       toast("Couldn't start the shift. Check your connection and tap Start again.", 'error')
       setSubmitting(false)
@@ -155,7 +155,7 @@ export default function ShiftGatePage() {
           <h2 className="text-lg font-semibold mb-1">A shift is already open</h2>
           <p className="text-gray-500 text-sm mb-6">
             Started at {new Date(activeShift.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.
-            Join it to start selling alongside whoever's already on it.
+            Join it to start selling alongside whoever&apos;s already on it.
           </p>
           <button
             onClick={handleJoin}
@@ -177,7 +177,7 @@ export default function ShiftGatePage() {
           <span className="font-semibold">Start a New Shift</span>
         </div>
         <p className="text-sm text-gray-500">
-          Log what's been cooked today. Leave anything not made at 0 —
+          Log what&apos;s been cooked today. Leave anything not made at 0 —
           you can always add more stock live once the shift is running.
         </p>
       </div>
