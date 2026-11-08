@@ -115,7 +115,7 @@ export default function MenuManagement() {
   const isOwner = getSession()?.role === 'owner'
 
   return (
-    <div className="p-4 sm:p-6 pb-28 sm:pb-28">
+    <div className="mx-auto max-w-5xl p-4 pb-28 sm:p-6 sm:pb-28">
       <div className="flex justify-between items-center mb-6">
         <h1 className="t-h1 text-text-primary">Menu Items</h1>
         {isOwner && (
@@ -146,7 +146,7 @@ export default function MenuManagement() {
                 <div className="flex flex-col items-end gap-2 flex-shrink-0 ml-3">
                   <button
                     onClick={() => toggleAvailability(item)} disabled={!isOwner}
-                    className={`px-2 py-1 rounded-full t-small font-medium ${
+                    className={`press px-2 py-1 rounded-full t-small font-medium ${
                       item.available ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
                     }`}
                   >
@@ -201,7 +201,7 @@ export default function MenuManagement() {
                       <td className="p-3 text-center whitespace-nowrap">
                         <button
                           onClick={() => toggleAvailability(item)} disabled={!isOwner}
-                          className={`px-2 py-1 rounded-full t-small font-medium min-w-[80px] ${
+                          className={`press px-2 py-1 rounded-full t-small font-medium min-w-[80px] ${
                             item.available ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
                           }`}
                         >
@@ -234,9 +234,9 @@ export default function MenuManagement() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-end justify-center z-50">
-          <div className="bg-white w-full max-w-md rounded-t-[20px] p-5 modal-content">
-            <div className="w-10 h-1 rounded-full bg-border mx-auto mb-5" />
+        <div className="fixed inset-0 bg-black/40 flex items-end justify-center z-50 md:items-center md:p-6">
+          <div className="bg-white w-full max-w-md rounded-t-[20px] p-5 md:rounded-[20px] modal-content">
+            <div className="w-10 h-1 rounded-full bg-border mx-auto mb-5 md:hidden" />
             <div className="flex justify-between items-center mb-4">
               <p className="t-h2 text-text-primary">{editingItem ? 'Edit Item' : 'Add New Item'}</p>
               <button onClick={closeModal} className="press text-text-muted min-h-0 min-w-0 w-8 h-8 flex items-center justify-center rounded-full">
@@ -272,9 +272,9 @@ export default function MenuManagement() {
       )}
 
       {deleteConfirm && (
-        <div className="fixed inset-0 bg-black/40 flex items-end justify-center z-50">
-          <div className="bg-white w-full max-w-md rounded-t-[20px] p-5">
-            <div className="w-10 h-1 rounded-full bg-border mx-auto mb-5" />
+        <div className="fixed inset-0 bg-black/40 flex items-end justify-center z-50 md:items-center md:p-6">
+          <div className="bg-white w-full max-w-md rounded-t-[20px] p-5 md:rounded-[20px]">
+            <div className="w-10 h-1 rounded-full bg-border mx-auto mb-5 md:hidden" />
             <p className="t-h2 text-text-primary">Delete this item?</p>
             <p className="t-body text-text-secondary mt-2">This cannot be undone.</p>
             <div className="flex gap-3 mt-6">

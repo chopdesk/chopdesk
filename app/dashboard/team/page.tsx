@@ -149,8 +149,8 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 pb-28 sm:pb-28 space-y-6 max-w-2xl">
-      <div>
+    <div className="mx-auto max-w-5xl space-y-6 p-4 pb-28 sm:p-6 sm:pb-28 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-8 lg:gap-y-6 lg:space-y-0">
+      <div className="lg:col-span-2">
         <h1 className="t-h1 text-text-primary">Team</h1>
         <p className="t-body text-text-secondary">{session?.org_name}</p>
       </div>
@@ -170,7 +170,7 @@ export default function TeamPage() {
                     'inline-block mt-1 px-2 py-0.5 rounded-full t-small ' +
                     (m.role === 'owner'
                       ? 'bg-primary/10 text-primary'
-                      : 'bg-gray-100 text-text-secondary')
+                      : 'bg-bg-subtle text-text-secondary')
                   }
                 >
                   {m.role === 'owner' ? 'Owner' : 'Staff'}
@@ -182,13 +182,13 @@ export default function TeamPage() {
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button
                       onClick={() => removeMember(m.id)}
-                      className="text-danger t-small font-semibold min-h-0 px-3 py-2"
+                      className="press rounded-lg text-danger t-small font-semibold min-h-0 px-3 py-2"
                     >
                       Confirm remove
                     </button>
                     <button
                       onClick={() => setRemoveConfirm(null)}
-                      className="text-text-muted t-small min-h-0 px-3 py-2"
+                      className="press rounded-lg text-text-muted t-small min-h-0 px-3 py-2"
                     >
                       Cancel
                     </button>
@@ -196,7 +196,7 @@ export default function TeamPage() {
                 ) : (
                   <button
                     onClick={() => setRemoveConfirm(m.id)}
-                    className="text-text-muted t-small min-h-0 px-3 py-2 flex-shrink-0"
+                    className="press rounded-lg text-text-muted t-small min-h-0 px-3 py-2 flex-shrink-0"
                   >
                     Remove
                   </button>
@@ -237,19 +237,19 @@ export default function TeamPage() {
                   <div className="flex items-center gap-2 mt-3">
                     <button
                       onClick={() => copyLink(inv.token)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-[10px] border border-border t-small min-h-0"
+                      className="press flex items-center gap-2 px-3 py-2 rounded-[10px] border border-border t-small min-h-0"
                     >
                       <Copy size={16} /> Copy
                     </button>
                     <button
                       onClick={() => shareOnWhatsApp(inv.token)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-[10px] border border-border t-small min-h-0"
+                      className="press flex items-center gap-2 px-3 py-2 rounded-[10px] border border-border t-small min-h-0"
                     >
                       <Share2 size={16} /> WhatsApp
                     </button>
                     <button
                       onClick={() => revokeInvite(inv.id)}
-                      className="ml-auto flex items-center gap-2 px-3 py-2 text-danger t-small min-h-0"
+                      className="press ml-auto flex items-center gap-2 px-3 py-2 rounded-[10px] text-danger t-small min-h-0"
                     >
                       <Trash2 size={16} /> Revoke
                     </button>
@@ -260,7 +260,7 @@ export default function TeamPage() {
           )}
         </section>
       ) : (
-        <p className="t-small text-text-muted">Only the owner can invite or remove people.</p>
+        <p className="t-small text-text-muted lg:col-span-2">Only the owner can invite or remove people.</p>
       )}
     </div>
   )

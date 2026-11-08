@@ -45,12 +45,12 @@ export default function ReceiptPage() {
 
   return (
     <div className="min-h-full bg-bg-subtle flex items-center justify-center p-4">
-      <div className="card max-w-sm w-full">
+      <div className="card w-full max-w-sm md:max-w-md">
 
         {/* Success icon */}
         <div className="text-center mb-5">
           <div
-            className={`w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-3 transition-transform duration-300 ease-out ${
+            className={`w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-3 transition-transform duration-500 ease-spring motion-reduce:transition-none ${
               iconVisible ? 'scale-100' : 'scale-0'
             }`}
           >

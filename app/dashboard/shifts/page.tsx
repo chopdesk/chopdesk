@@ -102,9 +102,9 @@ export default function ShiftsHistoryPage() {
         <span className="font-semibold">Shift History</span>
       </div>
 
-      <div className="p-4 space-y-3">
+      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-3 p-4 md:grid-cols-2 md:p-6 xl:grid-cols-3">
         {shifts.length === 0 ? (
-          <div className="bg-white rounded-xl p-6 text-center text-gray-400 text-sm">
+          <div className="col-span-full rounded-xl bg-white p-6 text-center t-body text-text-muted">
             No closed shifts yet.
           </div>
         ) : (
@@ -112,7 +112,7 @@ export default function ShiftsHistoryPage() {
             <button
               key={shift.id}
               onClick={() => router.push(`/dashboard/shifts/view?id=${shift.id}`)}
-              className="w-full bg-white rounded-xl p-4 shadow-sm border border-gray-200 flex items-center justify-between text-left"
+              className="press w-full rounded-xl border border-border bg-white p-4 shadow-sm flex items-center justify-between text-left"
             >
               <div>
                 <div className="flex items-center gap-2 text-sm font-medium">
@@ -121,7 +121,7 @@ export default function ShiftsHistoryPage() {
                     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
                   })}
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="t-small text-text-muted mt-1">
                   {shift.staffNames.join(', ') || 'No staff recorded'}
                 </p>
               </div>
@@ -129,7 +129,7 @@ export default function ShiftsHistoryPage() {
                 <p className="font-semibold text-primary">
                   ₦{shift.totalRevenue.toLocaleString()}
                 </p>
-                <ChevronRight size={18} className="text-gray-300" />
+                <ChevronRight size={18} className="text-text-muted" />
               </div>
             </button>
           ))

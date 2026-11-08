@@ -133,10 +133,10 @@ export default function ExpensesPage() {
 
   return (
     <div className="min-h-full bg-bg-subtle pb-24">
-      <div className="p-4 space-y-4">
+      <div className="mx-auto max-w-5xl space-y-4 p-4 md:p-6 lg:grid lg:grid-cols-[22rem_1fr] lg:grid-rows-[auto_1fr] lg:items-start lg:gap-6 lg:space-y-0">
 
         {/* Summary card */}
-        <div className="bg-primary rounded-[18px] p-5 text-white">
+        <div className="bg-primary rounded-[18px] p-5 text-white lg:col-start-1 lg:row-start-1">
           <p className="t-small text-white/60 uppercase tracking-widest mb-1">
             Active Shift
           </p>
@@ -164,14 +164,14 @@ export default function ExpensesPage() {
         {/* Add button */}
         <button
           onClick={() => setShowModal(true)}
-          className="btn-primary w-full flex items-center justify-center gap-2"
+          className="btn-primary w-full flex items-center justify-center gap-2 lg:col-start-1 lg:row-start-2"
         >
           <Plus size={16} />
           Add Expense
         </button>
 
         {/* Expenses list */}
-        <div>
+        <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
           <p className="t-h3 text-text-primary mb-3">This Shift</p>
           {expenses.length === 0 ? (
             <div className="card text-center py-12">
@@ -214,7 +214,7 @@ export default function ExpensesPage() {
                     </p>
                     <button
                       onClick={() => setShowDeleteConfirm(expense.id)}
-                      className="text-text-muted min-h-0 min-w-0 w-6 h-6 flex items-center justify-center mt-1"
+                      aria-label="Delete expense" className="press text-text-muted min-h-0 min-w-0 w-9 h-9 -mr-2 flex items-center justify-center rounded-full"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -228,9 +228,9 @@ export default function ExpensesPage() {
 
       {/* Add expense modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
-          <div className="bg-white w-full max-w-md rounded-t-[24px] p-5">
-            <div className="w-10 h-1 rounded-full bg-border mx-auto mb-5" />
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 md:items-center md:p-6">
+          <div className="bg-white w-full max-w-md rounded-t-[24px] p-5 md:rounded-[24px]">
+            <div className="w-10 h-1 rounded-full bg-border mx-auto mb-5 md:hidden" />
             <div className="flex justify-between items-center mb-5">
               <p className="t-h2 text-text-primary">Add Expense</p>
               <button
@@ -272,7 +272,7 @@ export default function ExpensesPage() {
                       key={method}
                       type="button"
                       onClick={() => setFormData({ ...formData, payment_method: method })}
-                      className={`py-3 rounded-[12px] t-label capitalize transition-colors min-h-0 ${
+                      className={`press py-3 rounded-[12px] t-label capitalize min-h-0 ${
                         formData.payment_method === method
                           ? 'bg-primary text-white'
                           : 'bg-bg-subtle text-text-secondary border border-border'
@@ -298,9 +298,9 @@ export default function ExpensesPage() {
 
       {/* Delete confirm */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
-          <div className="bg-white w-full max-w-md rounded-t-[24px] p-5">
-            <div className="w-10 h-1 rounded-full bg-border mx-auto mb-5" />
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 md:items-center md:p-6">
+          <div className="bg-white w-full max-w-md rounded-t-[24px] p-5 md:rounded-[24px]">
+            <div className="w-10 h-1 rounded-full bg-border mx-auto mb-5 md:hidden" />
             <p className="t-h2 text-text-primary">Delete this expense?</p>
             <p className="t-body text-text-secondary mt-2">This cannot be undone.</p>
             <div className="flex gap-3 mt-6">
