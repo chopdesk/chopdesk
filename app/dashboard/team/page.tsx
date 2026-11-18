@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -6,7 +6,8 @@ import { supabase } from '@/lib/supabase'
 import { getSession, createInvite, type UserSession } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
 import Spinner from '@/components/Spinner'
-import { Copy, Share2, Trash2, UserPlus } from 'lucide-react'
+import ResetPasswordSheet from '@/components/ResetPasswordSheet'
+import { Copy, KeyRound, Share2, Trash2, UserPlus } from 'lucide-react'
 
 type Member = { id: string; user_id: string; role: 'owner' | 'staff'; name: string }
 type PendingInvite = { id: string; token: string; expires_at: string }
@@ -20,6 +21,7 @@ export default function TeamPage() {
   const [invites, setInvites] = useState<PendingInvite[]>([])
   const [creating, setCreating] = useState(false)
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null)
+  const [resetTarget, setResetTarget] = useState<Member | null>(null)
 
   const isOwner = session?.role === 'owner'
 
@@ -178,29 +180,39 @@ export default function TeamPage() {
               </div>
 
               {isOwner && m.role === 'staff' && (
-                removeConfirm === m.id ? (
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => removeMember(m.id)}
-                      className="press rounded-lg text-danger t-small font-semibold min-h-0 px-3 py-2"
-                    >
-                      Confirm remove
-                    </button>
-                    <button
-                      onClick={() => setRemoveConfirm(null)}
-                      className="press rounded-lg text-text-muted t-small min-h-0 px-3 py-2"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setRemoveConfirm(m.id)}
-                    className="press rounded-lg text-text-muted t-small min-h-0 px-3 py-2 flex-shrink-0"
-                  >
-                    Remove
-                  </button>
-                )
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {removeConfirm === m.id ? (
+                    <>
+                      <button
+                        onClick={() => removeMember(m.id)}
+                        className="press rounded-lg text-danger t-small font-semibold min-h-0 px-3 py-2"
+                      >
+                        Confirm remove
+                      </button>
+                      <button
+                        onClick={() => setRemoveConfirm(null)}
+                        className="press rounded-lg text-text-muted t-small min-h-0 px-3 py-2"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setResetTarget(m)}
+                        className="press flex items-center gap-1 rounded-lg text-text-secondary t-small min-h-0 px-3 py-2"
+                      >
+                        <KeyRound size={14} /> Reset password
+                      </button>
+                      <button
+                        onClick={() => setRemoveConfirm(m.id)}
+                        className="press rounded-lg text-text-muted t-small min-h-0 px-3 py-2"
+                      >
+                        Remove
+                      </button>
+                    </>
+                  )}
+                </div>
               )}
             </div>
           ))}
@@ -261,6 +273,15 @@ export default function TeamPage() {
         </section>
       ) : (
         <p className="t-small text-text-muted lg:col-span-2">Only the owner can invite or remove people.</p>
+      )}
+
+      {resetTarget && session && (
+        <ResetPasswordSheet
+          orgId={session.org_id}
+          userId={resetTarget.user_id}
+          name={resetTarget.name}
+          onClose={() => setResetTarget(null)}
+        />
       )}
     </div>
   )
