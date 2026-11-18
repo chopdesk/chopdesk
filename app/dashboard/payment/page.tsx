@@ -39,8 +39,13 @@ export default function PaymentPage() {
   const [transferAmount, setTransferAmount] = useState('')
   const [amountReceived, setAmountReceived] = useState('')
 
+  // One id per checkout. It is sent with every attempt, so if the connection
+  // drops after the server saved the order and the cashier taps again, the
+  // server returns the saved order instead of creating a second one.
+  const [orderId] = useState(() => crypto.randomUUID())
+
   // `replace: true` is used for every guard bounce and for the final
-  // handoff to the receipt — none of those should leave this page sitting
+  // handoff to the receipt - none of those should leave this page sitting
   // in browser history. Payment is a mid-flow step: you should never be
   // able to hit "back" into it once you've moved past it, whether that's
   // because the order succeeded or because a guard kicked you out.
@@ -126,131 +131,55 @@ export default function PaymentPage() {
 
     setProcessing(true)
 
-    // Single fetch of current stock for every cart item — used both to
-    // validate sufficiency up front and, further down, to know which
-    // rows to decrement. No second query for the same data.
-    const { data: stockRows, error: stockFetchError } = await supabase
-      .from('shift_stock')
-      .select('id, item_id, quantity')
-      .eq('shift_id', activeShift.id)
-      .in('item_id', cart.map(i => i.id))
-
-    if (stockFetchError || !stockRows) {
-      toast("Couldn't check stock. Check your connection and try again.", 'error', { label: 'Retry', onClick: handleConfirmOrder })
-      setProcessing(false)
-      return
-    }
-
-    const insufficient = cart.filter(item => {
-      const stockRow = stockRows.find(s => s.item_id === item.id)
-      return !stockRow || stockRow.quantity < item.quantity
+    // One call does everything in a single transaction on the server: it
+    // checks stock, takes it, and saves the order. If anything fails, nothing
+    // is saved and no stock moves.
+    const { data: order, error } = await supabase.rpc('place_order', {
+      p_order_id:        orderId,
+      p_shift_id:        activeShift.id,
+      p_items:           cart.map(i => ({ item_id: i.id, qty: i.quantity })),
+      p_payment_method:  paymentMethod,
+      p_amount_received: paymentMethod === 'cash' ? parseFloat(amountReceived) : null,
+      p_cash_amount:     paymentMethod === 'split' ? (parseFloat(cashAmount) || 0) : 0,
+      p_transfer_amount: paymentMethod === 'split' ? (parseFloat(transferAmount) || 0) : 0,
+      p_expected_total:  total,
     })
 
-    if (insufficient.length > 0) {
-      const lines = insufficient.map(item => {
-        const available = stockRows.find(s => s.item_id === item.id)?.quantity ?? 0
-        return available === 0 ? `${item.name} is out of stock` : `${item.name}: only ${available} left`
-      })
-      showAlert({ title: 'Not enough stock', message: `${lines.join('. ')}. Adjust the order and try again.`, tone: 'warning', actionLabel: 'OK' })
+    if (error || !order) {
+      console.error(error)
       setProcessing(false)
+
+      // P0001 = a rule on the server said no (stock, prices, closed shift).
+      // The message is already written for the cashier.
+      if (error?.code === 'P0001') {
+        showAlert({ title: "Order wasn't saved", message: `${error.message}. Nothing was recorded and stock was not changed.`, tone: 'warning', actionLabel: 'OK' })
+      } else {
+        // Connection problem. Safe to retry: the same order id means the order
+        // can only ever be saved once.
+        toast("Couldn't reach the server. Check your connection and tap Confirm again.", 'error', { label: 'Retry', onClick: handleConfirmOrder })
+      }
       return
     }
 
-    let cashAmt     = 0
-    let transferAmt = 0
-    let changeGiven = 0
+    // The order is saved and stock is already taken. Build the receipt from
+    // what the server stored, so it shows the prices that were actually charged.
+    type SavedLine = { name: string; qty: number; unit_price: number }
+    const savedLines = order.items_json as SavedLine[]
 
-    if (paymentMethod === 'cash') {
-      cashAmt     = total
-      changeGiven = parseFloat(amountReceived) - total
-    } else if (paymentMethod === 'transfer') {
-      transferAmt = total
-    } else {
-      cashAmt     = parseFloat(cashAmount)     || 0
-      transferAmt = parseFloat(transferAmount) || 0
-    }
-
-    const itemsJson = cart.map(i => ({
-      item_id:    i.id,
-      name:       i.name,
-      qty:        i.quantity,
-      unit_price: i.price,
-      subtotal:   i.price * i.quantity,
-    }))
-
-    // Insert the order, tagged to the active shift
-    const { data: orderData, error: orderError } = await supabase
-      .from('orders')
-      .insert({
-        org_id:          session.org_id,
-        shift_id:        activeShift.id,
-        staff_id:        session.id,
-        items_json:      itemsJson,
-        subtotal:        total,
-        total,
-        payment_method:  paymentMethod,
-        cash_amount:     cashAmt,
-        transfer_amount: transferAmt,
-        change_given:    changeGiven,
-      })
-      .select()
-      .single()
-
-    if (orderError) {
-      console.error(orderError)
-      showAlert({ title: "Order wasn't saved", message: 'This order was not recorded and stock was not changed. Check your connection and try again.', actionLabel: 'OK' })
-      setProcessing(false)
-      return
-    }
-
-    // Decrement every item concurrently — each one updates a different
-    // row, so there's no reason to wait for one before starting the next.
-    // Uses the stockRows already fetched above.
-    const results = await Promise.all(
-      cart.map(async (item) => {
-        const stockRow = stockRows.find(s => s.item_id === item.id)
-        if (!stockRow) {
-          return { item, ok: false, reason: 'Stock record not found' }
-        }
-
-        const { data: updatedStock, error: stockError } = await supabase
-          .rpc('decrement_stock', {
-            p_stock_id: stockRow.id,
-            p_quantity: item.quantity
-          })
-
-        if (stockError) {
-          console.error('Stock decrement error:', stockError)
-          return { item, ok: false, reason: stockError.message }
-        }
-        if (!updatedStock || updatedStock.length === 0) {
-          return { item, ok: false, reason: `Insufficient stock (only ${stockRow.quantity} left)` }
-        }
-        return { item, ok: true, reason: '' }
-      })
-    )
-
-    const failures = results.filter(r => !r.ok)
-    // The order row exists now, so the receipt always opens. Staying on this
-    // page would let a second tap save the same order twice.
     localStorage.removeItem('current_order_cart')
     localStorage.setItem('last_order', JSON.stringify({
-      orderId:        orderData.id,
-      items:          cart,
-      total,
-      paymentMethod,
-      changeGiven,
-      cashAmount:     cashAmt,
-      transferAmount: transferAmt,
+      orderId:        order.id,
+      items:          savedLines.map(l => ({ name: l.name, quantity: l.qty, price: l.unit_price })),
+      total:          Number(order.total),
+      paymentMethod:  order.payment_method,
+      changeGiven:    Number(order.change_given),
+      cashAmount:     Number(order.cash_amount),
+      transferAmount: Number(order.transfer_amount),
     }))
 
     setProcessing(false)
     setSuccess(true)
     navigate('/dashboard/receipt', { replace: true })
-
-    if (failures.length > 0) {
-      showAlert({ title: "Order saved, but stock wasn't updated", message: `The receipt is ready. Ask the owner to check stock for: ${failures.map(f => f.item.name).join(', ')}.`, tone: 'warning', actionLabel: 'OK' })
-    }
   }
 
   if (loading) {
