@@ -112,7 +112,7 @@ export default function OrderHistoryPage() {
     setLoading(true)
     let query = supabase
       .from('orders')
-      .select('*, users(first_name, surname)')
+      .select('*, profiles(first_name, surname)')
       .order('created_at', { ascending: false })
 
     if (startDate) query = query.gte('created_at', `${startDate}T00:00:00`)
@@ -124,7 +124,7 @@ export default function OrderHistoryPage() {
     if (data) {
       setOrders(data.map(o => ({
         ...o,
-        staff_name: o.users ? `${o.users.first_name} ${o.users.surname}` : 'Unknown'
+        staff_name: o.profiles ? `${o.profiles.first_name} ${o.profiles.surname}` : 'Unknown'
       })))
     }
     setLoading(false)
