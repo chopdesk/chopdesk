@@ -8,7 +8,7 @@ import { getActiveShift, type ActiveShift } from '@/lib/shift'
 import { useToast } from '@/lib/toast'
 import { wasInvolved } from '@/lib/shiftReport'
 import Spinner from '@/components/Spinner'
-import { ClipboardCheck } from 'lucide-react'
+import { ClipboardCheck, CheckCircle2 } from 'lucide-react'
 
 // Note: this page deliberately never loads the expected remaining quantity.
 // Staff count blind, and the database works out the variance itself.
@@ -22,6 +22,7 @@ type CountRow = {
 }
 
 const isValidCount = (v: string | undefined) => v !== undefined && /^\d+$/.test(v.trim())
+const inputId = (itemId: string) => `count-${itemId}`
 
 export default function ShiftClosePage() {
   const router = useRouter()
@@ -31,6 +32,7 @@ export default function ShiftClosePage() {
   const [activeShift, setActiveShift] = useState<ActiveShift | null>(null)
   const [rows, setRows] = useState<CountRow[]>([])
   const [counts, setCounts] = useState<Record<string, string>>({})
+  const [showErrors, setShowErrors] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   const init = async () => {
@@ -70,11 +72,40 @@ export default function ShiftClosePage() {
     init()
   }, [])
 
-  const remaining = rows.filter(r => !isValidCount(counts[r.item_id])).length
-  const allCounted = remaining === 0
+  const missing = rows.filter(r => !isValidCount(counts[r.item_id]))
+  const counted = rows.length - missing.length
+  const progress = rows.length === 0 ? 100 : Math.round((counted / rows.length) * 100)
+
+  const focusItem = (itemId: string) => {
+    const el = document.getElementById(inputId(itemId)) as HTMLInputElement | null
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.focus({ preventScroll: true })
+  }
+
+  const handleEnter = (index: number) => {
+    // jump to the next item that still has no number, otherwise the next row
+    const after = rows.slice(index + 1)
+    const next = after.find(r => !isValidCount(counts[r.item_id])) || after[0]
+    if (next) focusItem(next.item_id)
+    else (document.activeElement as HTMLElement | null)?.blur()
+  }
 
   const handleCloseShift = async () => {
-    if (!activeShift || !allCounted || submitting) return
+    if (!activeShift || submitting) return
+
+    if (missing.length > 0) {
+      setShowErrors(true)
+      toast(
+        missing.length === 1
+          ? '1 item still needs a count. Type 0 if none is left.'
+          : `${missing.length} items still need a count. Type 0 if none is left.`,
+        'warning'
+      )
+      focusItem(missing[0].item_id)
+      return
+    }
+
     if (!window.confirm('Close the shift? This cannot be undone.')) return
 
     setSubmitting(true)
@@ -140,10 +171,23 @@ export default function ShiftClosePage() {
           <ClipboardCheck size={20} className="text-primary" />
           <span className="font-semibold">Close Shift — Stock Count</span>
         </div>
-        <p className="text-sm text-gray-500">
-          Count what&apos;s physically left of each item and type it in.
-          Type 0 if there is none left. Every item needs a number.
+        <p className="text-sm text-gray-500 mb-3">
+          Count what&apos;s physically left of each item. Type 0 if none is left.
         </p>
+        {rows.length > 0 && (
+          <div>
+            <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <span>{counted} of {rows.length} counted</span>
+              <span>{progress}%</span>
+            </div>
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="p-4 space-y-3">
@@ -153,42 +197,62 @@ export default function ShiftClosePage() {
           </div>
         )}
 
-        {rows.map(row => (
-          <div
-            key={row.id}
-            className="bg-white rounded-xl p-4 flex items-center justify-between shadow-sm border border-gray-200"
-          >
-            <div>
-              <p className="font-medium text-sm">{row.item_name}</p>
-              <p className="text-xs text-gray-400">{row.unit} · left</p>
+        {rows.map((row, index) => {
+          const done = isValidCount(counts[row.item_id])
+          const bad = showErrors && !done
+          return (
+            <div
+              key={row.id}
+              className={`bg-white rounded-xl p-4 flex items-center justify-between shadow-sm border ${
+                bad ? 'border-red-400 bg-red-50' : 'border-gray-200'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <CheckCircle2
+                  size={20}
+                  className={done ? 'text-green-600' : 'text-gray-200'}
+                />
+                <div>
+                  <p className="font-medium text-sm">{row.item_name}</p>
+                  <p className={`text-xs ${bad ? 'text-red-600' : 'text-gray-400'}`}>
+                    {bad ? 'Enter a number (0 if none left)' : `${row.unit} · left`}
+                  </p>
+                </div>
+              </div>
+              <input
+                id={inputId(row.item_id)}
+                type="number"
+                inputMode="numeric"
+                enterKeyHint="next"
+                min="0"
+                step="1"
+                value={counts[row.item_id] ?? ''}
+                onChange={(e) =>
+                  setCounts(prev => ({ ...prev, [row.item_id]: e.target.value }))
+                }
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleEnter(index)
+                  }
+                }}
+                placeholder="—"
+                className={`w-20 text-center border rounded-lg py-2 text-sm ${
+                  bad ? 'border-red-400' : 'border-gray-200'
+                }`}
+              />
             </div>
-            <input
-              type="number"
-              inputMode="numeric"
-              min="0"
-              step="1"
-              value={counts[row.item_id] ?? ''}
-              onChange={(e) =>
-                setCounts(prev => ({ ...prev, [row.item_id]: e.target.value }))
-              }
-              placeholder="—"
-              className="w-20 text-center border border-gray-200 rounded-lg py-2 text-sm"
-            />
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       <div className="fixed bottom-[var(--bottom-nav-h)] left-0 right-0 md:bottom-0 md:left-16 lg:left-56 p-4 bg-gradient-to-t from-bg-subtle via-bg-subtle to-transparent pt-8 z-20">
         <button
           onClick={handleCloseShift}
-          disabled={submitting || !allCounted}
-          className="w-full bg-primary text-white py-4 rounded-xl font-medium shadow-lg disabled:opacity-50"
+          disabled={submitting}
+          className="w-full bg-primary text-white py-4 rounded-xl font-medium shadow-lg disabled:opacity-60"
         >
-          {submitting
-            ? 'Closing Shift...'
-            : allCounted
-              ? 'Close Shift'
-              : `Count every item to close (${remaining} left)`}
+          {submitting ? 'Closing Shift...' : 'Close Shift'}
         </button>
       </div>
     </div>
