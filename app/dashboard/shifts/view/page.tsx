@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { getSession } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
 import Spinner from '@/components/Spinner'
+import { buildShiftReport, type Discrepancy } from '@/lib/shiftReport'
 import { Copy, ChevronLeft } from 'lucide-react'
 
 type ShiftStockRow = {
@@ -101,7 +102,7 @@ function ShiftDetailContent() {
       if (closeError) throw new Error(closeError.message)
       const discrepancies = (closeRows || [])
         .filter((r: ShiftCloseRow) => r.variance !== 0)
-        .map((r: ShiftCloseRow) => ({
+        .map((r: ShiftCloseRow): Discrepancy => ({
           item_name: itemNameById[r.item_id] || 'Unknown item',
           expected: r.actual_remaining - r.variance,
           counted: r.actual_remaining,
@@ -155,76 +156,21 @@ function ShiftDetailContent() {
         description: e.description,
         amount: Number(e.amount),
       }))
-      const expenseTotal = expenseRows.reduce((s, e) => s + e.amount, 0)
 
-      // ---- Build the summary text ----
-      const openedDate = new Date(shift.opened_at)
-      const closedDate = new Date(shift.closed_at)
-
-      const dateStr = openedDate.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
-      const openTimeStr = openedDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-      const closeTimeStr = closedDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-
-      const durationMs = closedDate.getTime() - openedDate.getTime()
-      const durationH = Math.floor(durationMs / 3600000)
-      const durationM = Math.floor((durationMs % 3600000) / 60000)
-
-      const soldQtyLines = stockRows
-        .map(r => `${r.item_name}: ${r.opening_qty + r.added_qty - r.quantity} ${r.unit}`)
-        .join('\n')
-
-      const totalItemsSold = stockRows.reduce(
-        (s, r) => s + (r.opening_qty + r.added_qty - r.quantity), 0
-      )
-
-      const soldAmountLines = stockRows
-        .map(r => {
-          const sold = r.opening_qty + r.added_qty - r.quantity
-          const price = priceMap[r.item_id] || 0
-          return `${r.item_name} - ${(sold * price).toLocaleString()}`
-        })
-        .join('\n')
-
-      const expenseLines = expenseRows.length > 0
-        ? expenseRows.map(e => `${e.description} - ${e.amount.toLocaleString()}`).join('\n')
-        : 'None'
-
-      const cashAfterExpenses = revenueCash - expenseTotal
-      const net = revenueTotal - expenseTotal
-
-      const discrepancyLines = discrepancies.length > 0
-        ? discrepancies
-            .map(d => `${d.item_name}: ${d.variance > 0 ? '+' : ''}${d.variance} (expected ${d.expected}, counted ${d.counted})`)
-            .join('\n')
-        : 'No discrepancies'
-
-      setSummary(`*${getSession()?.org_name || 'Chopdesk'} — Shift Report*
-${dateStr}
-${openTimeStr} – ${closeTimeStr} (${durationH}h ${durationM}m)
-Staff: ${staffNames.join(', ')}
-
-*Sold (Qty)*
-${soldQtyLines}
-${totalItemsSold} items · ${orderCount} orders
-
-*Sold (₦)*
-${soldAmountLines}
-
-*Revenue*
-Cash: ${revenueCash.toLocaleString()}
-Transfer: ${revenueTransfer.toLocaleString()}
-Total: ${revenueTotal.toLocaleString()}
-
-*Expenses (from cash)*
-${expenseLines}
-Total: ${expenseTotal.toLocaleString()}
-
-Cash after expenses: ${cashAfterExpenses.toLocaleString()}
-
-*Stock Discrepancies*
-${discrepancyLines}
-
-*Net:* ${net.toLocaleString()}`)
+      setSummary(buildShiftReport({
+        orgName: getSession()?.org_name || 'Chopdesk',
+        openedAt: shift.opened_at,
+        closedAt: shift.closed_at,
+        staffNames,
+        stock: stockRows,
+        prices: priceMap,
+        orderCount,
+        revenueCash,
+        revenueTransfer,
+        revenueTotal,
+        expenses: expenseRows,
+        discrepancies,
+      }))
 
       setLoading(false)
 

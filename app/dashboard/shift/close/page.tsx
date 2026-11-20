@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -6,30 +6,22 @@ import { supabase } from '@/lib/supabase'
 import { getSession } from '@/lib/auth'
 import { getActiveShift, type ActiveShift } from '@/lib/shift'
 import { useToast } from '@/lib/toast'
+import { wasInvolved } from '@/lib/shiftReport'
 import Spinner from '@/components/Spinner'
-import { ClipboardCheck, Copy, CheckCircle2 } from 'lucide-react'
+import { ClipboardCheck } from 'lucide-react'
 
-type ShiftStockRow = {
+// Note: this page deliberately never loads the expected remaining quantity.
+// Staff count blind, and the database works out the variance itself.
+type CountRow = {
   id: string
   item_id: string
   item_name: string
   unit: string
   opening_qty: number
   added_qty: number
-  quantity: number
 }
 
-type ExpenseRow = {
-  description: string
-  amount: number
-}
-
-type Discrepancy = {
-  item_name: string
-  expected: number
-  counted: number
-  variance: number
-}
+const isValidCount = (v: string | undefined) => v !== undefined && /^\d+$/.test(v.trim())
 
 export default function ShiftClosePage() {
   const router = useRouter()
@@ -37,20 +29,9 @@ export default function ShiftClosePage() {
 
   const [loading, setLoading] = useState(true)
   const [activeShift, setActiveShift] = useState<ActiveShift | null>(null)
-
-  const [stockRows, setStockRows] = useState<ShiftStockRow[]>([])
-  const [priceMap, setPriceMap] = useState<Record<string, number>>({})
-  const [staffNames, setStaffNames] = useState<string[]>([])
-  const [revenueCash, setRevenueCash] = useState(0)
-  const [revenueTransfer, setRevenueTransfer] = useState(0)
-  const [revenueTotal, setRevenueTotal] = useState(0)
-  const [orderCount, setOrderCount] = useState(0)
-  const [expenseRows, setExpenseRows] = useState<ExpenseRow[]>([])
-  const [expenseTotal, setExpenseTotal] = useState(0)
-
+  const [rows, setRows] = useState<CountRow[]>([])
   const [counts, setCounts] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
-  const [summary, setSummary] = useState<string | null>(null)
 
   const init = async () => {
     const userSession = getSession()
@@ -67,77 +48,17 @@ export default function ShiftClosePage() {
       }
       setActiveShift(shift)
 
-      // Stock logged for this shift
+      // quantity (the expected remaining) is intentionally not selected
       const { data: stock, error: stockError } = await supabase
         .from('shift_stock')
-        .select('*')
+        .select('id, item_id, item_name, unit, opening_qty, added_qty')
         .eq('shift_id', shift.id)
         .order('item_name')
       if (stockError) throw new Error(stockError.message)
-      setStockRows(stock || [])
 
-      // Prices, for the ₦-per-item breakdown
-      const { data: menu, error: menuError } = await supabase
-        .from('menu_items')
-        .select('id, price')
-      if (menuError) throw new Error(menuError.message)
-      const prices: Record<string, number> = {}
-      menu?.forEach(m => { prices[m.id] = Number(m.price) })
-      setPriceMap(prices)
-
-      // Staff list — who joined this shift
-      const { data: assignments, error: assignError } = await supabase
-        .from('shift_assignments')
-        .select('user_id, joined_at')
-        .eq('shift_id', shift.id)
-        .order('joined_at')
-      if (assignError) throw new Error(assignError.message)
-
-      const userIds = Array.from(new Set((assignments || []).map(a => a.user_id)))
-      let names: string[] = []
-      if (userIds.length > 0) {
-        const { data: users, error: usersError } = await supabase
-          .from('profiles')
-          .select('id, first_name, surname')
-          .in('id', userIds)
-        if (usersError) throw new Error(usersError.message)
-
-        names = (assignments || []).map(a => {
-          const u = users?.find(u => u.id === a.user_id)
-          return u ? `${u.first_name} ${u.surname}`.trim() : 'Unknown'
-        })
-        names = Array.from(new Set(names))
-      }
-      setStaffNames(names)
-
-      // Revenue — orders placed during this shift
-      const { data: orders, error: ordersError } = await supabase
-        .from('orders')
-        .select('cash_amount, transfer_amount, total')
-        .eq('shift_id', shift.id)
-      if (ordersError) throw new Error(ordersError.message)
-
-      setRevenueCash((orders || []).reduce((s, o) => s + Number(o.cash_amount || 0), 0))
-      setRevenueTransfer((orders || []).reduce((s, o) => s + Number(o.transfer_amount || 0), 0))
-      setRevenueTotal((orders || []).reduce((s, o) => s + Number(o.total || 0), 0))
-      setOrderCount((orders || []).length)
-
-      // Expenses — paid from cash during this shift
-      const { data: expenses, error: expensesError } = await supabase
-        .from('expenses')
-        .select('description, amount')
-        .eq('shift_id', shift.id)
-      if (expensesError) throw new Error(expensesError.message)
-
-      const expRows: ExpenseRow[] = (expenses || []).map(e => ({
-        description: e.description,
-        amount: Number(e.amount),
-      }))
-      setExpenseRows(expRows)
-      setExpenseTotal(expRows.reduce((s, e) => s + e.amount, 0))
-
+      // Only items logged at opening or added later are part of this shift
+      setRows((stock || []).filter(wasInvolved))
       setLoading(false)
-
     } catch (err) {
       console.error(err)
       toast("Couldn't load this shift. Check your connection and try again.", 'error', { label: 'Retry', onClick: init })
@@ -149,147 +70,45 @@ export default function ShiftClosePage() {
     init()
   }, [])
 
-  const buildSummary = (closedAt: string, discrepancies: Discrepancy[]) => {
-    if (!activeShift) return ''
-
-    const openedDate = new Date(activeShift.opened_at)
-    const closedDate = new Date(closedAt)
-
-    const dateStr = openedDate.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
-    const openTimeStr = openedDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-    const closeTimeStr = closedDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-
-    const durationMs = closedDate.getTime() - openedDate.getTime()
-    const durationH = Math.floor(durationMs / 3600000)
-    const durationM = Math.floor((durationMs % 3600000) / 60000)
-
-    const soldQtyLines = stockRows
-      .map(r => `${r.item_name}: ${r.opening_qty + r.added_qty - r.quantity} ${r.unit}`)
-      .join('\n')
-
-    const totalItemsSold = stockRows.reduce(
-      (s, r) => s + (r.opening_qty + r.added_qty - r.quantity), 0
-    )
-
-    const soldAmountLines = stockRows
-      .map(r => {
-        const sold = r.opening_qty + r.added_qty - r.quantity
-        const price = priceMap[r.item_id] || 0
-        return `${r.item_name} - ${(sold * price).toLocaleString()}`
-      })
-      .join('\n')
-
-    const expenseLines = expenseRows.length > 0
-      ? expenseRows.map(e => `${e.description} - ${e.amount.toLocaleString()}`).join('\n')
-      : 'None'
-
-    const cashAfterExpenses = revenueCash - expenseTotal
-    const net = revenueTotal - expenseTotal
-
-    const discrepancyLines = discrepancies.length > 0
-      ? discrepancies
-          .map(d => `${d.item_name}: ${d.variance > 0 ? '+' : ''}${d.variance} (expected ${d.expected}, counted ${d.counted})`)
-          .join('\n')
-      : 'No discrepancies'
-
-    return `*${getSession()?.org_name || 'Chopdesk'} — Shift Report*
-${dateStr}
-${openTimeStr} – ${closeTimeStr} (${durationH}h ${durationM}m)
-Staff: ${staffNames.join(', ')}
-
-*Sold (Qty)*
-${soldQtyLines}
-${totalItemsSold} items · ${orderCount} orders
-
-*Sold (₦)*
-${soldAmountLines}
-
-*Revenue*
-Cash: ${revenueCash.toLocaleString()}
-Transfer: ${revenueTransfer.toLocaleString()}
-Total: ${revenueTotal.toLocaleString()}
-
-*Expenses (from cash)*
-${expenseLines}
-Total: ${expenseTotal.toLocaleString()}
-
-Cash after expenses: ${cashAfterExpenses.toLocaleString()}
-
-*Stock Discrepancies*
-${discrepancyLines}
-
-*Net:* ${net.toLocaleString()}`
-  }
+  const remaining = rows.filter(r => !isValidCount(counts[r.item_id])).length
+  const allCounted = remaining === 0
 
   const handleCloseShift = async () => {
-    const userSession = getSession()
-    if (!userSession || !activeShift) return
+    if (!activeShift || !allCounted || submitting) return
+    if (!window.confirm('Close the shift? This cannot be undone.')) return
 
     setSubmitting(true)
-
     try {
-      const discrepancies: Discrepancy[] = []
+      const p_counts = rows.map(r => ({
+        item_id: r.item_id,
+        counted: parseInt(counts[r.item_id].trim(), 10),
+      }))
 
-      const closeRows = stockRows.map(r => {
-        const soldQty = r.opening_qty + r.added_qty - r.quantity
-        const enteredRaw = counts[r.item_id]
-        const counted = enteredRaw !== undefined && enteredRaw !== ''
-          ? parseInt(enteredRaw)
-          : r.quantity
-        const variance = counted - r.quantity
-
-        if (variance !== 0) {
-          discrepancies.push({ item_name: r.item_name, expected: r.quantity, counted, variance })
-        }
-
-        return {
-          org_id: userSession.org_id,
-          shift_id: activeShift.id,
-          item_id: r.item_id,
-          opening_qty: r.opening_qty,
-          sold_qty: soldQty,
-          actual_remaining: counted,
-          variance,
-        }
+      const { error } = await supabase.rpc('close_shift', {
+        p_shift_id: activeShift.id,
+        p_counts,
       })
 
-      if (closeRows.length > 0) {
-        const { error: closeError } = await supabase
-          .from('shift_close')
-          .insert(closeRows)
-        if (closeError) throw new Error(closeError.message)
+      if (error) {
+        // P0001 = a message our own database function wrote for the user
+        if (error.code === 'P0001') {
+          if (error.message.includes('already closed')) {
+            toast('This shift was already closed.', 'warning')
+            router.replace(`/dashboard/shifts/view?id=${activeShift.id}`)
+            return
+          }
+          toast(error.message, 'error')
+          setSubmitting(false)
+          return
+        }
+        throw new Error(error.message)
       }
 
-      const closedAtIso = new Date().toISOString()
-
-      const { data: closedShift, error: updateError } = await supabase
-        .from('shifts')
-        .update({ closed_at: closedAtIso, closed_by: userSession.id })
-        .eq('id', activeShift.id)
-        .is('closed_at', null)
-        .select()
-        .single()
-
-      if (updateError) throw new Error(updateError.message)
-      if (!closedShift) throw new Error('This shift was already closed by someone else')
-
-      setSummary(buildSummary(closedShift.closed_at, discrepancies))
-
+      router.replace(`/dashboard/shifts/view?id=${activeShift.id}`)
     } catch (err) {
       console.error(err)
-      toast(err instanceof Error && err.message === 'This shift was already closed by someone else' ? 'This shift was already closed by someone else.' : "Couldn't close the shift. Check your connection and try again.", 'error')
-    } finally {
+      toast("Couldn't close the shift. Check your connection and tap Close Shift again.", 'error')
       setSubmitting(false)
-    }
-  }
-
-  const handleCopy = async () => {
-    if (!summary) return
-    try {
-      await navigator.clipboard.writeText(summary)
-      toast('Summary copied. Paste it into WhatsApp.', 'success')
-    } catch {
-      toast("Couldn't copy. Select the text and copy it by hand.", 'warning')
     }
   }
 
@@ -314,39 +133,6 @@ ${discrepancyLines}
     )
   }
 
-  // Shift just closed — show the read-only summary
-  if (summary) {
-    return (
-      <div className="min-h-full bg-bg-subtle p-4 pb-32">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 max-w-lg mx-auto">
-          <div className="p-4 border-b flex items-center gap-2">
-            <CheckCircle2 size={20} className="text-green-600" />
-            <span className="font-semibold">Shift Closed</span>
-          </div>
-          <pre className="p-4 text-sm whitespace-pre-wrap font-sans">{summary}</pre>
-        </div>
-
-        <div className="fixed bottom-[var(--bottom-nav-h)] left-0 right-0 md:bottom-0 md:left-16 lg:left-56 p-4 bg-gradient-to-t from-bg-subtle via-bg-subtle to-transparent pt-8 z-20">
-          <div className="max-w-lg mx-auto flex gap-3">
-            <button
-              onClick={handleCopy}
-              className="flex-1 bg-white border border-gray-200 text-primary py-3 rounded-xl font-medium flex items-center justify-center gap-2"
-            >
-              <Copy size={18} /> Copy Summary
-            </button>
-            <button
-              onClick={() => router.push('/dashboard/shift')}
-              className="flex-1 bg-primary text-white py-3 rounded-xl font-medium"
-            >
-              Done
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Shift open — physical count entry
   return (
     <div className="min-h-full bg-bg-subtle pb-32">
       <div className="bg-white border-b sticky top-0 z-10 px-4 py-4">
@@ -355,31 +141,37 @@ ${discrepancyLines}
           <span className="font-semibold">Close Shift — Stock Count</span>
         </div>
         <p className="text-sm text-gray-500">
-          Count what&apos;s physically left of each item. Leave blank if it
-          matches what the app expects.
+          Count what&apos;s physically left of each item and type it in.
+          Type 0 if there is none left. Every item needs a number.
         </p>
       </div>
 
       <div className="p-4 space-y-3">
-        {stockRows.map(row => (
+        {rows.length === 0 && (
+          <div className="bg-white rounded-xl p-4 text-sm text-gray-500 border border-gray-200">
+            No stock was logged on this shift, so there is nothing to count.
+          </div>
+        )}
+
+        {rows.map(row => (
           <div
             key={row.id}
             className="bg-white rounded-xl p-4 flex items-center justify-between shadow-sm border border-gray-200"
           >
             <div>
               <p className="font-medium text-sm">{row.item_name}</p>
-              <p className="text-xs text-gray-400">
-                {row.unit} · expected {row.quantity} remaining
-              </p>
+              <p className="text-xs text-gray-400">{row.unit} · left</p>
             </div>
             <input
               type="number"
+              inputMode="numeric"
               min="0"
-              value={counts[row.item_id] || ''}
+              step="1"
+              value={counts[row.item_id] ?? ''}
               onChange={(e) =>
                 setCounts(prev => ({ ...prev, [row.item_id]: e.target.value }))
               }
-              placeholder={String(row.quantity)}
+              placeholder="—"
               className="w-20 text-center border border-gray-200 rounded-lg py-2 text-sm"
             />
           </div>
@@ -389,10 +181,14 @@ ${discrepancyLines}
       <div className="fixed bottom-[var(--bottom-nav-h)] left-0 right-0 md:bottom-0 md:left-16 lg:left-56 p-4 bg-gradient-to-t from-bg-subtle via-bg-subtle to-transparent pt-8 z-20">
         <button
           onClick={handleCloseShift}
-          disabled={submitting}
-          className="w-full bg-primary text-white py-4 rounded-xl font-medium shadow-lg"
+          disabled={submitting || !allCounted}
+          className="w-full bg-primary text-white py-4 rounded-xl font-medium shadow-lg disabled:opacity-50"
         >
-          {submitting ? 'Closing Shift...' : 'Close Shift'}
+          {submitting
+            ? 'Closing Shift...'
+            : allCounted
+              ? 'Close Shift'
+              : `Count every item to close (${remaining} left)`}
         </button>
       </div>
     </div>
