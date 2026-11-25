@@ -1,4 +1,4 @@
-// scripts/migrate/migrate.mjs
+﻿// scripts/migrate/migrate.mjs
 // Uptimyzas Kitchen -> Chopdesk migration. Current mode: DRY RUN ONLY.
 // Reads the JSON backup folder, checks every rule Chopdesk enforces, prints a report.
 // It connects to NO database and changes NOTHING (it only writes dry-run-report.json
@@ -50,6 +50,18 @@ for (const n of NAMES) {
   add(blockers, !m || m.status !== 'ok' || m.rows !== T[n].length, 'backup file ' + n + '.json does not match its manifest entry');
 }
 
+// ---- open shifts are LEFT OUT (with everything that hangs off them) ----
+// A shift that is still open is not finished, so it is not moved. Closed shifts never change,
+// so moving them from the backup is always safe, even if the old app is busy right now.
+const openIds = new Set(T.shifts.filter((s) => !s.closed_at).map((s) => s.id));
+const leftOut = { shifts: openIds.size };
+for (const n of ['shift_assignments', 'shift_stock', 'shift_close', 'orders', 'expenses']) {
+  const before = T[n].length;
+  T[n] = T[n].filter((r) => !openIds.has(r.shift_id));
+  leftOut[n] = before - T[n].length;
+}
+T.shifts = T.shifts.filter((s) => s.closed_at);
+
 // ---- people ----
 const active = T.users.filter((u) => u.status === 'active');
 const left = T.users.filter((u) => u.status !== 'active');
@@ -90,8 +102,7 @@ refs('shift_stock (shift)', T.shift_stock, 'shift_id', shiftIds, false);
 refs('shift_close (shift)', T.shift_close, 'shift_id', shiftIds, false);
 
 // ---- shifts ----
-const openShifts = countWhere(T.shifts, (s) => !s.closed_at);
-add(blockers, openShifts > 0, openShifts + ' shift(s) still open in the old app. Close it there first, then take a fresh backup');
+add(notes, openIds.size > 0, openIds.size + ' shift(s) were still open in the old app when the backup was taken. LEFT OUT, with their ' + leftOut.orders + ' orders, ' + leftOut.expenses + ' expenses and ' + leftOut.shift_stock + ' stock rows.');
 add(blockers, countWhere(T.shifts, (s) => Boolean(s.closed_at) !== Boolean(s.closed_by)) > 0, 'some shifts have closed_at and closed_by out of step (Chopdesk requires both or neither)');
 add(blockers, countWhere(T.shifts, (s) => !s.opened_at) > 0, 'some shifts have no opened_at');
 add(warnings, countWhere(T.shifts, (s) => s.closed_at && s.opened_at && Date.parse(s.closed_at) < Date.parse(s.opened_at)) > 0, 'some shifts close before they open (copied as they are)');
@@ -204,6 +215,7 @@ const leftBehind = {
   users_not_migrating: left.map((u) => String(u.first_name) + ' ' + String(u.surname) + ' (' + u.status + ')'),
   chat_messages: T.chat_messages.length, audit_logs: T.audit_logs.length, login_attempts: T.login_attempts.length,
   shift_close_extra_copies: closeDropped,
+  left_out_open_shifts: leftOut,
   user_fields_dropped: 'additional_phone, is_student, state, city, address, approved_at, declined_at',
 };
 
@@ -223,6 +235,7 @@ line('');
 line('LEFT BEHIND:');
 line('  users not migrating: ' + (leftBehind.users_not_migrating.join(', ') || 'none'));
 line('  chat_messages ' + leftBehind.chat_messages + ', audit_logs ' + leftBehind.audit_logs + ', login_attempts ' + leftBehind.login_attempts + ' (all in the backup folder)');
+line('  open shifts left out: ' + leftOut.shifts + ' (orders ' + leftOut.orders + ', expenses ' + leftOut.expenses + ', stock ' + leftOut.shift_stock + ')');
 line('  extra shift_close copies: ' + closeDropped);
 line('  user fields dropped: ' + leftBehind.user_fields_dropped);
 line('');
