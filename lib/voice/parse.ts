@@ -14,7 +14,7 @@ export type VoiceLine = {
 
 export type VoiceProblem = {
   heard: string
-  reason: 'no_item' | 'no_quantity' | 'ambiguous'
+  reason: 'no_item' | 'no_quantity' | 'ambiguous' | 'multiple_items'
   candidates: string[]
 }
 
@@ -36,6 +36,12 @@ const TENS: Record<string, number> = {
 const SEPARATORS = new Set(['and', 'then', 'plus', 'next', 'also'])
 // words in a menu name that carry no meaning for matching
 const NAME_STOP = new Set(['and', 'with', 'of', 'the'])
+
+// Chrome often writes a spoken number as a look-alike word ("Ewa for scoop" = "Ewa four scoops").
+// Only used when no real number was heard next to an item.
+const HOMOPHONES: Record<string, number> = {
+  for: 4, fore: 4, to: 2, too: 2, won: 1, wan: 1, warm: 1, ate: 8,
+}
 
 const has = (map: Record<string, number>, key: string) =>
   Object.prototype.hasOwnProperty.call(map, key)
@@ -135,29 +141,84 @@ function wordsMatch(heard: string, target: string): boolean {
   return distance(h, t) <= allowed
 }
 
-type Scored = { item: VoiceMenuItem; score: number; matched: number }
+type Scored = { item: VoiceMenuItem; score: number; matched: number; used: Set<number> }
 
 function matchItems(words: string[], items: VoiceMenuItem[]): Scored[] {
+  // single words first, then neighbours joined together ("nutri choco" can be one menu word, "NutriChoko")
+  const units: { text: string; idx: number[] }[] = words.map((w, i) => ({ text: w, idx: [i] }))
+  for (let i = 0; i < words.length - 1; i++) {
+    units.push({ text: (words[i] as string) + (words[i + 1] as string), idx: [i, i + 1] })
+  }
+
   const scored: Scored[] = []
   for (const item of items) {
     const nameWords = normalizeWords(item.name).filter(w => w !== '|' && !NAME_STOP.has(w))
     if (nameWords.length === 0) continue
-    const matched = nameWords.filter(nw => words.some(w => wordsMatch(w, nw))).length
+    const used = new Set<number>()
+    let matched = 0
+    for (const nw of nameWords) {
+      const hit = units.find(u => (u.idx.length === 1 || nw.length >= 7) && wordsMatch(u.text, nw))
+      if (hit) {
+        matched++
+        hit.idx.forEach(k => used.add(k))
+      }
+    }
     const score = matched / nameWords.length
-    if (matched >= 1 && score >= 0.5) scored.push({ item, score, matched })
+    if (matched >= 1 && score >= 0.5) scored.push({ item, score, matched, used })
   }
   // best score first; on a tie, the item that matched more words wins
   return scored.sort((a, b) => b.score - a.score || b.matched - a.matched)
 }
 
-function splitSegment(seg: Tok[]): Tok[][] {
+const isDisjoint = (a: Set<number>, b: Set<number>) => {
+  for (const k of a) if (b.has(k)) return false
+  return true
+}
+
+type Evaluated = { line?: VoiceLine; problem?: VoiceProblem }
+
+// Understands one chunk of speech: one item and one number. Never guesses when unsure.
+function evaluateChunk(chunk: Tok[], items: VoiceMenuItem[]): Evaluated | null {
+  const words = chunk.flatMap(t => (t.kind === 'word' ? [t.text] : []))
+  const num = chunk.find(t => t.kind === 'num')
+  if (words.length === 0 && !num) return null
+
+  const heard = chunk.map(t => (t.kind === 'word' ? t.text : t.kind === 'num' ? String(t.value) : '')).join(' ')
+  const ranked = matchItems(words, items)
+  const top = ranked[0]
+  if (!top) return { problem: { heard, reason: 'no_item', candidates: [] } }
+
+  // two different foods in one chunk but only one number: do not pick one silently
+  const others = ranked.slice(1)
+  const disjoint = others.filter(r => isDisjoint(r.used, top.used))
+  if (disjoint.length > 0) {
+    return {
+      problem: { heard, reason: 'multiple_items', candidates: [top, ...disjoint].map(r => r.item.name) },
+    }
+  }
+  // two menu items that match equally well (for example "rice" with Jollof Rice and Fried Rice)
+  const ties = others.filter(r => r.score === top.score && r.matched === top.matched)
+  if (ties.length > 0) {
+    return { problem: { heard, reason: 'ambiguous', candidates: [top, ...ties].map(r => r.item.name) } }
+  }
+
+  let qty: number | null = num && num.kind === 'num' ? num.value : null
+  if (qty === null) {
+    const idx = words.findIndex((w, i) => has(HOMOPHONES, w) && !top.used.has(i))
+    if (idx >= 0) qty = HOMOPHONES[words[idx] as string] as number
+  }
+  if (qty === null) return { problem: { heard, reason: 'no_quantity', candidates: [top.item.name] } }
+
+  return { line: { itemId: top.item.id, itemName: top.item.name, qty, heard } }
+}
+
+function splitSegment(seg: Tok[], direction: 'item-first' | 'number-first'): Tok[][] {
   const nums = seg.filter(t => t.kind === 'num').length
   if (nums <= 1) return [seg]
   const chunks: Tok[][] = []
   let cur: Tok[] = []
-  const numberFirst = seg[0]?.kind === 'num' // "2 jollof 1 chicken" vs "jollof 300 beans 50"
   for (const t of seg) {
-    if (numberFirst) {
+    if (direction === 'number-first') {
       if (t.kind === 'num' && cur.length > 0) {
         chunks.push(cur)
         cur = []
@@ -173,6 +234,13 @@ function splitSegment(seg: Tok[]): Tok[][] {
   }
   if (cur.length > 0) chunks.push(cur)
   return chunks
+}
+
+function evaluateAll(chunks: Tok[][], items: VoiceMenuItem[]): Evaluated[] {
+  return chunks.flatMap(c => {
+    const r = evaluateChunk(c, items)
+    return r ? [r] : []
+  })
 }
 
 /**
@@ -193,30 +261,18 @@ export function parseVoiceLines(transcript: string, items: VoiceMenuItem[]): Voi
   }
 
   for (const seg of segments) {
-    for (const chunk of splitSegment(seg)) {
-      const words = chunk.flatMap(t => (t.kind === 'word' ? [t.text] : []))
-      const num = chunk.find(t => t.kind === 'num')
-      if (words.length === 0 && !num) continue
+    // "jollof 300 beans 50" (item then number) or "2 jollof 1 chicken" (number then item):
+    // try both readings and keep the one that understands more
+    const itemFirst = evaluateAll(splitSegment(seg, 'item-first'), items)
+    const numberFirst = evaluateAll(splitSegment(seg, 'number-first'), items)
+    const countLines = (r: Evaluated[]) => r.filter(e => e.line).length
+    let chosen = itemFirst
+    if (countLines(numberFirst) > countLines(itemFirst)) chosen = numberFirst
+    else if (countLines(numberFirst) === countLines(itemFirst) && seg[0]?.kind === 'num') chosen = numberFirst
 
-      const heard = chunk.map(t => (t.kind === 'word' ? t.text : t.kind === 'num' ? String(t.value) : '')).join(' ')
-      const ranked = matchItems(words, items)
-      const top = ranked[0]
-
-      if (!top) {
-        problems.push({ heard, reason: 'no_item', candidates: [] })
-        continue
-      }
-      const second = ranked[1]
-      if (second && second.score === top.score && second.matched === top.matched) {
-        const best = ranked.filter(r => r.score === top.score && r.matched === top.matched)
-        problems.push({ heard, reason: 'ambiguous', candidates: best.map(r => r.item.name) })
-        continue
-      }
-      if (!num || num.kind !== 'num') {
-        problems.push({ heard, reason: 'no_quantity', candidates: [top.item.name] })
-        continue
-      }
-      lines.push({ itemId: top.item.id, itemName: top.item.name, qty: num.value, heard })
+    for (const e of chosen) {
+      if (e.line) lines.push(e.line)
+      if (e.problem) problems.push(e.problem)
     }
   }
 

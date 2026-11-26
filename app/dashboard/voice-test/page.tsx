@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { parseVoiceLines, type VoiceMenuItem, type VoiceParseResult } from '@/lib/voice/parse'
+import { parseVoiceLines, type VoiceMenuItem, type VoiceParseResult, type VoiceProblem } from '@/lib/voice/parse'
 import { Mic, Square, Volume2 } from 'lucide-react'
 
 type Alt = { transcript: string; confidence: number }
@@ -34,10 +34,20 @@ type Attempt = {
   result: VoiceParseResult
 }
 
+type Feedback = 'chime' | 'voice' | 'silent'
+
 const LANGS = [
   { code: 'en-NG', label: 'English (Nigeria)' },
   { code: 'en-US', label: 'English (US)' },
 ]
+
+const FEEDBACK: { id: Feedback; label: string }[] = [
+  { id: 'chime', label: 'Chime' },
+  { id: 'voice', label: 'Voice' },
+  { id: 'silent', label: 'Silent' },
+]
+
+const RETRY_PHRASE = 'Come again please'
 
 function getRecognitionCtor(): RecognitionCtor | null {
   if (typeof window === 'undefined') return null
@@ -48,12 +58,41 @@ function getRecognitionCtor(): RecognitionCtor | null {
   return w.SpeechRecognition || w.webkitSpeechRecognition || null
 }
 
+// the most natural-sounding voice this phone has: "natural/neural" first, then Nigerian, then British, then US
+function pickBestVoice(list: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined {
+  const score = (v: SpeechSynthesisVoice) => {
+    const n = v.name.toLowerCase()
+    const l = v.lang.toLowerCase().replace('_', '-')
+    let s = 0
+    if (/natural|neural|wavenet|enhanced|premium/.test(n)) s += 10
+    if (!v.localService) s += 2
+    if (l === 'en-ng') s += 3
+    else if (l === 'en-gb') s += 2
+    else if (l === 'en-us') s += 1
+    return s
+  }
+  return [...list].sort((a, b) => score(b) - score(a))[0]
+}
+
 const ERROR_TEXT: Record<string, string> = {
   'not-allowed': 'The microphone is blocked. Tap the lock icon in the address bar, allow the microphone, then try again.',
   'service-not-allowed': 'The microphone is blocked. Tap the lock icon in the address bar, allow the microphone, then try again.',
   'no-speech': 'Heard nothing. Tap the mic and try again.',
   'audio-capture': 'No microphone was found on this device.',
   network: 'Speech recognition needs internet. Check the connection.',
+}
+
+function problemText(p: VoiceProblem): string {
+  if (p.reason === 'no_item') return `No menu item found in "${p.heard}"`
+  if (p.reason === 'no_quantity') return `No number heard for ${p.candidates[0]}`
+  if (p.reason === 'multiple_items') {
+    return `Heard ${Array.from(new Set(p.candidates)).join(' and ')} with only one number. Say each item with its own number.`
+  }
+  const names = Array.from(new Set(p.candidates))
+  if (names.length === 1) {
+    return `Two menu items are both named "${names[0]}". Rename one so voice can tell them apart.`
+  }
+  return `"${p.heard}" could be ${names.join(' or ')}`
 }
 
 export default function VoiceTestPage() {
@@ -63,23 +102,33 @@ export default function VoiceTestPage() {
   const [interim, setInterim] = useState('')
   const [error, setError] = useState('')
   const [lang, setLang] = useState('en-NG')
-  const [speakBack, setSpeakBack] = useState(true)
+  const [feedback, setFeedback] = useState<Feedback>('chime')
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
+  const [voiceName, setVoiceName] = useState('')
   const [attempts, setAttempts] = useState<Attempt[]>([])
 
   const recRef = useRef<RecognitionLike | null>(null)
+  const audioRef = useRef<AudioContext | null>(null)
   const itemsRef = useRef<VoiceMenuItem[]>([])
-  const speakRef = useRef(true)
+  const feedbackRef = useRef<Feedback>('chime')
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([])
+  const voiceNameRef = useRef('')
   const nextId = useRef(1)
 
   useEffect(() => {
     itemsRef.current = items
   }, [items])
   useEffect(() => {
-    speakRef.current = speakBack
-  }, [speakBack])
+    feedbackRef.current = feedback
+  }, [feedback])
+  useEffect(() => {
+    voicesRef.current = voices
+    voiceNameRef.current = voiceName
+  }, [voices, voiceName])
 
   useEffect(() => {
     setSupported(getRecognitionCtor() !== null)
+
     supabase
       .from('menu_items')
       .select('id, name')
@@ -89,42 +138,104 @@ export default function VoiceTestPage() {
         if (err) setError("Couldn't load the menu: " + err.message)
         else setItems(data || [])
       })
+
+    const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined
+    const loadVoices = () => {
+      if (!synth) return
+      const list = synth.getVoices().filter(v => v.lang.toLowerCase().startsWith('en'))
+      setVoices(list)
+      setVoiceName(prev => prev || pickBestVoice(list)?.name || '')
+    }
+    loadVoices()
+    synth?.addEventListener('voiceschanged', loadVoices)
+
     return () => {
       recRef.current?.abort()
-      if (typeof window !== 'undefined') window.speechSynthesis?.cancel()
+      synth?.cancel()
+      synth?.removeEventListener('voiceschanged', loadVoices)
     }
   }, [])
 
   const say = (text: string) => {
-    if (!speakRef.current || typeof window === 'undefined' || !window.speechSynthesis) return
+    if (typeof window === 'undefined' || !window.speechSynthesis) return
+    const u = new SpeechSynthesisUtterance(text)
+    const v = voicesRef.current.find(x => x.name === voiceNameRef.current)
+    if (v) {
+      u.voice = v
+      u.lang = v.lang
+    }
+    u.rate = 1.05
+    u.pitch = 1
     window.speechSynthesis.cancel()
-    window.speechSynthesis.speak(new SpeechSynthesisUtterance(text))
+    window.speechSynthesis.speak(u)
+  }
+
+  // two quick rising notes for "got it", one low note for "try again"
+  const chime = (ok: boolean) => {
+    const ctx = audioRef.current
+    if (!ctx) return
+    const t0 = ctx.currentTime
+    const notes: [number, number][] = ok ? [[659, 0], [880, 0.11]] : [[300, 0]]
+    for (const [freq, delay] of notes) {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      gain.gain.setValueAtTime(0.0001, t0 + delay)
+      gain.gain.exponentialRampToValueAtTime(0.3, t0 + delay + 0.015)
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + delay + 0.16)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(t0 + delay)
+      osc.stop(t0 + delay + 0.18)
+    }
+  }
+
+  const respond = (result: VoiceParseResult) => {
+    const mode = feedbackRef.current
+    if (mode === 'silent') return
+    const ok = result.lines.length > 0 && result.problems.length === 0
+    if (mode === 'chime') {
+      chime(ok)
+      if (!ok) setTimeout(() => say(RETRY_PHRASE), 250)
+    } else {
+      say(ok ? result.lines.map(l => `${l.itemName}, ${l.qty}`).join('. ') : RETRY_PHRASE)
+    }
   }
 
   const finish = (alts: Alt[], usedLang: string) => {
     const best = alts[0]
     if (!best) return
     const result = parseVoiceLines(best.transcript, itemsRef.current)
-    const attempt: Attempt = {
-      id: nextId.current++,
-      lang: usedLang,
-      heard: best.transcript,
-      confidence: best.confidence,
-      others: alts.slice(1).map(a => a.transcript),
-      result,
-    }
-    setAttempts(prev => [attempt, ...prev].slice(0, 15))
-
-    if (result.lines.length > 0 && result.problems.length === 0) {
-      say(result.lines.map(l => `${l.itemName}, ${l.qty}`).join('. '))
-    } else if (result.problems.length > 0) {
-      say("Sorry, I didn't get that. Say it again.")
-    }
+    setAttempts(prev =>
+      [
+        {
+          id: nextId.current++,
+          lang: usedLang,
+          heard: best.transcript,
+          confidence: best.confidence,
+          others: alts.slice(1).map(a => a.transcript),
+          result,
+        },
+        ...prev,
+      ].slice(0, 15)
+    )
+    respond(result)
   }
 
   const start = () => {
     const Ctor = getRecognitionCtor()
     if (!Ctor || listening) return
+
+    // the audio context has to be created from a tap
+    if (!audioRef.current && typeof window !== 'undefined') {
+      const AC =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+      if (AC) audioRef.current = new AC()
+    }
+    audioRef.current?.resume()
+
     const rec = new Ctor()
     rec.lang = lang
     rec.continuous = false
@@ -178,6 +289,11 @@ export default function VoiceTestPage() {
     )
   }
 
+  const pill = (active: boolean) =>
+    `flex-1 rounded-lg border px-3 py-2 text-sm ${
+      active ? 'border-primary bg-primary/10 text-primary font-medium' : 'border-gray-200 bg-white text-gray-600'
+    }`
+
   return (
     <div className="min-h-full bg-bg-subtle pb-24">
       <div className="bg-white border-b px-4 py-4">
@@ -190,26 +306,44 @@ export default function VoiceTestPage() {
       <div className="p-4 space-y-4">
         <div className="flex gap-2">
           {LANGS.map(l => (
-            <button
-              key={l.code}
-              onClick={() => !listening && setLang(l.code)}
-              className={`flex-1 rounded-lg border px-3 py-2 text-sm ${
-                lang === l.code ? 'border-primary bg-primary/10 text-primary font-medium' : 'border-gray-200 bg-white text-gray-600'
-              }`}
-            >
+            <button key={l.code} onClick={() => !listening && setLang(l.code)} className={pill(lang === l.code)}>
               {l.label}
             </button>
           ))}
         </div>
 
-        <button
-          onClick={() => setSpeakBack(v => !v)}
-          className={`w-full flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm ${
-            speakBack ? 'border-primary bg-primary/10 text-primary font-medium' : 'border-gray-200 bg-white text-gray-600'
-          }`}
-        >
-          <Volume2 size={16} /> Speak the answer back: {speakBack ? 'On' : 'Off'}
-        </button>
+        <div>
+          <p className="text-xs text-gray-400 mb-1">When it understands:</p>
+          <div className="flex gap-2">
+            {FEEDBACK.map(f => (
+              <button key={f.id} onClick={() => setFeedback(f.id)} className={pill(feedback === f.id)}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {voices.length > 0 && (
+          <div className="flex gap-2">
+            <select
+              value={voiceName}
+              onChange={e => setVoiceName(e.target.value)}
+              className="flex-1 min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+            >
+              {voices.map(v => (
+                <option key={v.name} value={v.name}>
+                  {v.name} ({v.lang})
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => say('Jollof rice, three hundred')}
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm flex items-center gap-1 text-gray-600"
+            >
+              <Volume2 size={16} /> Try
+            </button>
+          </div>
+        )}
 
         <button
           onClick={listening ? stop : start}
@@ -244,9 +378,7 @@ export default function VoiceTestPage() {
             </div>
             {a.result.problems.map((p, i) => (
               <p key={i} className="text-sm text-warning">
-                {p.reason === 'no_item' && `No menu item found in "${p.heard}"`}
-                {p.reason === 'no_quantity' && `No number heard for ${p.candidates[0]}`}
-                {p.reason === 'ambiguous' && `"${p.heard}" could be ${p.candidates.join(' or ')}`}
+                {problemText(p)}
               </p>
             ))}
           </div>
