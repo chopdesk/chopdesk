@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Link from 'next/link'
@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   Home, ShoppingBag, Package, Clock,
   Utensils, Receipt, History, Users,
-  LogOut, Menu, X, ChevronRight, ChevronLeft,
+  LogOut, Menu, X, ChevronRight, ChevronLeft, Mic,
 } from 'lucide-react'
 import { signOut, getSession } from '@/lib/auth'
 import AuthGuard from '@/components/AuthGuard'
@@ -25,6 +25,7 @@ const STOCK = { name: 'Stock', icon: Package, path: '/dashboard/stock' }
 const SHIFT = { name: 'Shift', icon: Clock, path: SHIFT_START }
 const MENU = { name: 'Menu Items', icon: Utensils, path: '/dashboard/menu' }
 const TEAM = { name: 'Team', icon: Users, path: '/dashboard/team' }
+const VOICE = { name: 'Voice', icon: Mic, path: '/dashboard/voice' }
 const ORDER_HISTORY = { name: 'Order History', icon: Receipt, path: '/dashboard/order-history' }
 const SHIFT_HISTORY = { name: 'Shift History', icon: History, path: '/dashboard/shifts' }
 
@@ -34,7 +35,7 @@ const tabs = [HOME, STOCK, ORDERS, SHIFT]
 // Sidebar and the "More" sheet share the same groups
 const groups: { label: string | null; items: typeof tabs }[] = [
   { label: null, items: [HOME, ORDERS, STOCK, SHIFT] },
-  { label: 'Manage', items: [MENU, TEAM] },
+  { label: 'Manage', items: [MENU, TEAM, VOICE] },
   { label: 'Records', items: [ORDER_HISTORY, SHIFT_HISTORY] },
 ]
 const moreGroups = groups.slice(1)

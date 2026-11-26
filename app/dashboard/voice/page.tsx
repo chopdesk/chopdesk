@@ -1,7 +1,7 @@
-﻿'use client'
+'use client'
 
-// TEMPORARY test page: tap the mic, say menu items, see what Chrome heard and what the parser understood.
-// Delete the app/dashboard/voice-test folder once the real voice features are built.
+// Voice assistant: practise speaking to the app and teach it how this business's menu sounds.
+// The mic will also appear inside Orders, Shift and Close Shift once those screens are wired up.
 
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -373,9 +373,9 @@ export default function VoiceTestPage() {
   return (
     <div className="min-h-full bg-bg-subtle pb-24">
       <div className="bg-white border-b px-4 py-4">
-        <p className="font-semibold">Voice test</p>
+        <p className="font-semibold">Voice assistant</p>
         <p className="text-sm text-gray-500">
-          Tap the mic and say things like &quot;jollof rice 300, beans fifty&quot;. Try it from a few feet away, then in the busy kitchen.
+          Tap the mic and say things like &quot;jollof rice 300, beans fifty&quot;. Anything it mishears, you can teach it below.
         </p>
       </div>
 
