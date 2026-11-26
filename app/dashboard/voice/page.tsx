@@ -421,8 +421,33 @@ export default function VoiceTestPage() {
               return (
                 <div key={i} className="space-y-2">
                   <p className="text-sm text-warning">{problemText(p)}</p>
+                  {p.reason === 'no_item' && (p.suggestions || []).length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-gray-500">Sounds like. Tap the right one and it will remember:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {(p.suggestions || []).map(sg => {
+                          const it = items.find(i => i.id === sg.itemId)
+                          if (!it) return null
+                          return (
+                            <button
+                              key={sg.itemId}
+                              onClick={() => teach(chosen, it)}
+                              className="rounded-full border border-primary bg-primary/10 px-3 py-1 text-sm font-medium text-primary"
+                            >
+                              {sg.name}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
                   {p.reason === 'no_item' && words.length > 0 && items.length > 0 && (
                     <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 space-y-2">
+                      {(p.suggestions || []).length === 0 && (
+                        <p className="text-xs text-warning">
+                          Nothing on your menu sounds like this. If it is a new item, add it in Menu Items first.
+                        </p>
+                      )}
                       <p className="text-xs text-gray-500">Teach it. Keep only the words that mean one item:</p>
                       <div className="flex flex-wrap gap-2">
                         {words.map(w => (

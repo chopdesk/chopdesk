@@ -3,6 +3,8 @@
 // Pure functions only: no browser or database code, so it is easy to test and reuse
 // for stock logging, closing counts and order taking.
 
+import { rankBySound, type SoundMatch } from './sound'
+
 export type VoiceMenuItem = {
   id: string
   name: string
@@ -23,6 +25,8 @@ export type VoiceLine = {
 export type VoiceProblem = {
   heard: string
   reason: 'no_item' | 'no_quantity' | 'ambiguous' | 'multiple_items'
+  /** For 'no_item': menu items that sound like what was heard, best first. Never added to the order on their own. */
+  suggestions?: SoundMatch[]
   candidates: string[]
 }
 
@@ -226,6 +230,7 @@ const FILLER = new Set([
   'please', 'pls', 'plate', 'plates', 'portion', 'portions', 'scoop', 'scoops', 'pack', 'packs',
   'wrap', 'wraps', 'of', 'a', 'an', 'the', 'i', 'want', 'give', 'me', 'add', 'get', 'order',
   'x', 'naira', 'ok', 'okay', 'um', 'uh', 'er', 'hmm', 'thanks', 'thank', 'you', 'with', 'and',
+  'some', 'any', 'just', 'only', 'like', 'another', 'again',
 ])
 
 type Num = { value: number; pos: number }
@@ -398,7 +403,7 @@ export function parseVoiceLines(
 
     const heard = m.words.join(' ')
     if (m.kind === 'unknown') {
-      if (nj !== undefined) problems.push({ heard, reason: 'no_item', candidates: [] })
+      problems.push({ heard, reason: 'no_item', candidates: [], suggestions: rankBySound(m.words, menu) })
       return
     }
     const item = m.item as VoiceMenuItem
@@ -415,7 +420,7 @@ export function parseVoiceLines(
   if (lines.length === 0 && problems.length === 0) {
     const stray = unknown.map(u => u.words.join(' ')).join(' ')
     const heard = stray || toks.map(t => (t.kind === 'word' ? t.text : t.kind === 'num' ? String(t.value) : '')).join(' ').trim()
-    if (heard) problems.push({ heard, reason: 'no_item', candidates: [] })
+    if (heard) problems.push({ heard, reason: 'no_item', candidates: [], suggestions: rankBySound(heard.split(' '), menu) })
   }
 
   return { lines, problems }
