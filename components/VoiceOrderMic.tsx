@@ -13,6 +13,7 @@ import { promoteLearned, learnedCounts, type LearningRow } from '@/lib/voice/lea
 import { byPopularity, popularityFromOrders, rerank, type Popularity } from '@/lib/voice/rank'
 import { addVoiceMarks, tagVoiceMarks, type VoiceMark } from '@/lib/voice/feedback'
 import type { VoicePhrase, VoiceProblem } from '@/lib/voice/parse'
+import VoiceOrb, { type OrbState } from '@/components/VoiceOrb'
 import { Mic, Square, X } from 'lucide-react'
 
 type MenuLite = { id: string; name: string }
@@ -35,6 +36,13 @@ export default function VoiceOrderMic({ menu, onAdd }: Props) {
   const [status, setStatus] = useState('')
   const [pickKey, setPickKey] = useState<number | null>(null)
   const [query, setQuery] = useState('')
+  // glow states: "thinking" = waiting for the phone to hand over the sentence; flash = brief result colour
+  const [thinking, setThinking] = useState(false)
+  const [flash, setFlash] = useState<'ok' | 'maybe' | null>(null)
+  // live loudness needs a second microphone stream, which some phones do not allow while listening.
+  // It is off unless you open the page once with ?meter=1 (turn it off again with ?meter=0).
+  const [meter, setMeter] = useState(false)
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const nextKey = useRef(1)
   // id of the newest logged sentence; the learning step will use it later
   const lastLogId = useRef<string | null>(null)
@@ -79,6 +87,26 @@ export default function VoiceOrderMic({ menu, onAdd }: Props) {
         setPopularity(popularityFromOrders((data || []).map((r: { items_json: unknown }) => r.items_json)))
       })
   }, [])
+
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get('meter')
+      if (q === '1') localStorage.setItem('voice_meter', '1')
+      if (q === '0') localStorage.removeItem('voice_meter')
+      setMeter(localStorage.getItem('voice_meter') === '1')
+    } catch {
+      // storage blocked: the meter simply stays off
+    }
+    return () => {
+      if (flashTimer.current) clearTimeout(flashTimer.current)
+    }
+  }, [])
+
+  const showFlash = (kind: 'ok' | 'maybe') => {
+    setFlash(kind)
+    if (flashTimer.current) clearTimeout(flashTimer.current)
+    flashTimer.current = setTimeout(() => setFlash(null), 1100)
+  }
 
   const cleanWords = (text: string) => text.toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim()
 
@@ -147,6 +175,7 @@ export default function VoiceOrderMic({ menu, onAdd }: Props) {
     }
 
     let line = `Heard: "${best.heard}"`
+    let understood = false
     if (lines.length > 0) {
       const added = onAdd(lines.map(l => ({ itemId: l.itemId, qty: l.qty })))
       // evidence for later: if this item is still in the order when it is paid, the app understood correctly
@@ -161,15 +190,44 @@ export default function VoiceOrderMic({ menu, onAdd }: Props) {
       if (added.length > 0) {
         line = `Added ${added.map(a => `${a.qty} × ${a.name}`).join(', ')}`
         buzz()
+        understood = true
       }
     } else if (problems.length === 0) {
       line = `Heard "${best.heard}". Nothing matched the menu.`
     }
     setStatus(line)
+    setThinking(false)
+    showFlash(understood ? 'ok' : 'maybe')
     setNotes(prev => [...problems.map(p => noteFor(p, batch)), ...prev].slice(0, 4))
   }
 
-  const { supported, listening, interim, error, start, stop } = useRecognizer({ lang: 'en-NG', onFinal: handleFinal })
+  const { supported, listening, interim, error, level, start, stop } = useRecognizer({
+    lang: 'en-NG',
+    onFinal: handleFinal,
+    withLevel: meter,
+  })
+
+  // when the words stop changing for a moment, the phone is working out the sentence: show "thinking"
+  useEffect(() => {
+    if (!listening || !interim) {
+      setThinking(false)
+      return
+    }
+    setThinking(false)
+    const t = setTimeout(() => setThinking(true), 700)
+    return () => clearTimeout(t)
+  }, [interim, listening])
+
+  const orbState: OrbState = listening ? (thinking ? 'thinking' : 'listening') : flash ?? 'idle'
+
+  const press = () => {
+    if (listening) {
+      stop()
+      return
+    }
+    setFlash(null)
+    start()
+  }
 
   const choose = (note: Note, opt: Option) => {
     const added = onAdd([{ itemId: opt.itemId, qty: note.qty }])
@@ -208,19 +266,21 @@ export default function VoiceOrderMic({ menu, onAdd }: Props) {
   return (
     <div className="px-4 pb-3">
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={listening ? stop : start}
-          aria-label={listening ? 'Stop listening' : 'Speak an order'}
-          className={`press flex h-11 flex-shrink-0 items-center gap-2 rounded-full px-4 text-sm font-medium ${
-            listening ? 'bg-danger text-white animate-pulse' : 'bg-primary text-white'
-          }`}
+        <VoiceOrb
+          state={orbState}
+          level={meter && listening ? level : null}
+          pulse={interim.length}
+          onClick={press}
+          label={listening ? 'Stop listening' : 'Speak an order'}
         >
-          {listening ? <Square size={16} /> : <Mic size={18} />}
-          {listening ? 'Listening…' : 'Speak order'}
-        </button>
-        <p className="t-small min-w-0 flex-1 truncate text-text-secondary">
-          {listening ? interim || 'Say the items and numbers' : status}
+          {listening ? <Square size={18} /> : <Mic size={22} />}
+        </VoiceOrb>
+        <p aria-live="polite" className="t-small min-w-0 flex-1 truncate text-text-secondary">
+          {listening
+            ? thinking
+              ? 'Working it out…'
+              : interim || 'Listening. Say the items and numbers'
+            : status || 'Tap the mic and say the order'}
         </p>
       </div>
 
