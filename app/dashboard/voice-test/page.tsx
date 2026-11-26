@@ -5,8 +5,14 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { parseVoiceLines, type VoiceMenuItem, type VoiceParseResult, type VoiceProblem } from '@/lib/voice/parse'
-import { Mic, Square, Volume2 } from 'lucide-react'
+import {
+  parseVoiceLines,
+  type VoiceMenuItem,
+  type VoiceParseResult,
+  type VoicePhrase,
+  type VoiceProblem,
+} from '@/lib/voice/parse'
+import { Mic, Square, Volume2, X } from 'lucide-react'
 
 type Alt = { transcript: string; confidence: number }
 type ResultLike = { isFinal: boolean; length: number; [i: number]: Alt }
@@ -35,6 +41,8 @@ type Attempt = {
 }
 
 type Feedback = 'chime' | 'voice' | 'silent'
+
+type TaughtRow = { id: string; itemId: string; phrase: string }
 
 const LANGS = [
   { code: 'en-NG', label: 'English (Nigeria)' },
@@ -106,10 +114,14 @@ export default function VoiceTestPage() {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   const [voiceName, setVoiceName] = useState('')
   const [attempts, setAttempts] = useState<Attempt[]>([])
+  const [taught, setTaught] = useState<TaughtRow[]>([])
+  const [skipped, setSkipped] = useState<Record<string, string[]>>({})
+  const [note, setNote] = useState('')
 
   const recRef = useRef<RecognitionLike | null>(null)
   const audioRef = useRef<AudioContext | null>(null)
   const itemsRef = useRef<VoiceMenuItem[]>([])
+  const taughtRef = useRef<TaughtRow[]>([])
   const feedbackRef = useRef<Feedback>('chime')
   const voicesRef = useRef<SpeechSynthesisVoice[]>([])
   const voiceNameRef = useRef('')
@@ -137,6 +149,20 @@ export default function VoiceTestPage() {
       .then(({ data, error: err }) => {
         if (err) setError("Couldn't load the menu: " + err.message)
         else setItems(data || [])
+      })
+
+    supabase
+      .from('voice_phrases')
+      .select('id, item_id, phrase')
+      .then(({ data, error: err }) => {
+        if (err) return
+        const rows: TaughtRow[] = (data || []).map((r: { id: string; item_id: string; phrase: string }) => ({
+          id: r.id,
+          itemId: r.item_id,
+          phrase: r.phrase,
+        }))
+        taughtRef.current = rows
+        setTaught(rows)
       })
 
     const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined
@@ -191,6 +217,55 @@ export default function VoiceTestPage() {
     }
   }
 
+  const toPhrases = (): VoicePhrase[] => taughtRef.current.map(t => ({ itemId: t.itemId, phrase: t.phrase }))
+
+  // after the taught list changes, read every sentence on screen again so you can see what now works
+  const applyTaught = (next: TaughtRow[]) => {
+    taughtRef.current = next
+    setTaught(next)
+    setAttempts(prev =>
+      prev.map(a => ({ ...a, result: parseVoiceLines(a.heard, itemsRef.current, toPhrases()) }))
+    )
+  }
+
+  const toggleWord = (key: string, word: string) =>
+    setSkipped(prev => {
+      const now = prev[key] || []
+      return { ...prev, [key]: now.includes(word) ? now.filter(w => w !== word) : [...now, word] }
+    })
+
+  const teach = async (words: string[], item: VoiceMenuItem) => {
+    const phrase = words.join(' ')
+    if (phrase.length < 2) {
+      setNote('Keep at least one word selected, then tap the item.')
+      return
+    }
+    const { data, error: err } = await supabase.rpc('teach_voice_phrase', { p_item_id: item.id, p_phrase: phrase })
+    if (err) {
+      setError(err.message)
+      return
+    }
+    setError('')
+    applyTaught([...taughtRef.current.filter(t => t.phrase !== phrase), { id: String(data), itemId: item.id, phrase }])
+    setNote(`Learned: "${phrase}" means ${item.name}`)
+    if (feedbackRef.current !== 'silent') chime(true)
+  }
+
+  const forget = async (row: TaughtRow) => {
+    const { data, error: err } = await supabase.from('voice_phrases').delete().eq('id', row.id).select('id')
+    if (err) {
+      setError(err.message)
+      return
+    }
+    if (!data || data.length === 0) {
+      setError('Only the owner can remove taught phrases.')
+      return
+    }
+    setError('')
+    applyTaught(taughtRef.current.filter(t => t.id !== row.id))
+    setNote(`Forgot "${row.phrase}"`)
+  }
+
   const respond = (result: VoiceParseResult) => {
     const mode = feedbackRef.current
     if (mode === 'silent') return
@@ -206,7 +281,7 @@ export default function VoiceTestPage() {
   const finish = (alts: Alt[], usedLang: string) => {
     const best = alts[0]
     if (!best) return
-    const result = parseVoiceLines(best.transcript, itemsRef.current)
+    const result = parseVoiceLines(best.transcript, itemsRef.current, toPhrases())
     setAttempts(prev =>
       [
         {
@@ -269,6 +344,7 @@ export default function VoiceTestPage() {
 
     recRef.current = rec
     setError('')
+    setNote('')
     setListening(true)
     try {
       rec.start()
@@ -359,6 +435,7 @@ export default function VoiceTestPage() {
           <div className="bg-white rounded-xl p-4 border border-gray-200 text-gray-500 italic">{interim}</div>
         )}
         {error && <div className="bg-danger/10 text-danger rounded-xl p-4 text-sm">{error}</div>}
+        {note && <div className="bg-success/10 text-success rounded-xl p-4 text-sm font-medium">{note}</div>}
 
         {attempts.map(a => (
           <div key={a.id} className="bg-white rounded-xl p-4 border border-gray-200 space-y-2">
@@ -376,13 +453,70 @@ export default function VoiceTestPage() {
                 </span>
               ))}
             </div>
-            {a.result.problems.map((p, i) => (
-              <p key={i} className="text-sm text-warning">
-                {problemText(p)}
-              </p>
-            ))}
+            {a.result.problems.map((p, i) => {
+              const key = `${a.id}-${i}`
+              const words = p.heard.split(' ').filter(w => /^[a-z]+$/.test(w))
+              const left = skipped[key] || []
+              const chosen = words.filter(w => !left.includes(w))
+              return (
+                <div key={i} className="space-y-2">
+                  <p className="text-sm text-warning">{problemText(p)}</p>
+                  {p.reason === 'no_item' && words.length > 0 && items.length > 0 && (
+                    <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 space-y-2">
+                      <p className="text-xs text-gray-500">Teach it. Keep only the words that mean one item:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {words.map(w => (
+                          <button
+                            key={w}
+                            onClick={() => toggleWord(key, w)}
+                            className={`rounded-full px-3 py-1 text-sm border ${
+                              left.includes(w)
+                                ? 'border-gray-200 bg-white text-gray-300 line-through'
+                                : 'border-primary bg-primary/10 text-primary font-medium'
+                            }`}
+                          >
+                            {w}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-500">Then tap the item it means:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {items.map(it => (
+                          <button
+                            key={it.id}
+                            onClick={() => teach(chosen, it)}
+                            className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-700 active:bg-primary/10"
+                          >
+                            {it.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         ))}
+
+        {taught.length > 0 && (
+          <div className="pt-2">
+            <p className="text-xs text-gray-400 mb-2">Phrases this business taught:</p>
+            <div className="flex flex-wrap gap-2">
+              {taught.map(t => (
+                <span
+                  key={t.id}
+                  className="flex items-center gap-1 bg-primary/10 text-primary rounded-full pl-3 pr-1 py-1 text-xs"
+                >
+                  {t.phrase} → {items.find(i => i.id === t.itemId)?.name ?? '?'}
+                  <button onClick={() => forget(t)} aria-label={`Forget ${t.phrase}`} className="p-1 rounded-full">
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {items.length > 0 && (
           <div className="pt-2">
