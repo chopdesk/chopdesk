@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -9,6 +9,8 @@ import { useToast } from '@/lib/toast'
 import NoShiftState from '@/components/NoShiftState'
 import Spinner from '@/components/Spinner'
 import OrderCart from '@/components/OrderCart'
+import VoiceOrderMic from '@/components/VoiceOrderMic'
+import { clearVoiceMarks } from '@/lib/voice/feedback'
 import { sortByAvailability } from '@/lib/menuSort'
 import { ShoppingCart, PackagePlus, Receipt, X, ChevronDown } from 'lucide-react'
 
@@ -141,6 +143,7 @@ export default function OrdersPage() {
 
   const saveCart = (newCart: CartItem[]) => {
     localStorage.setItem('current_order_cart', JSON.stringify(newCart))
+    if (newCart.length === 0) clearVoiceMarks()
     setCart(newCart)
   }
 
@@ -170,6 +173,31 @@ export default function OrdersPage() {
     } else {
       saveCart([...cart, { id: item.id, name: item.name, price: item.price, unit: item.unit, quantity: 1 }])
     }
+  }
+
+  // Voice adds to the cart (never replaces it) and respects stock
+  const addVoiceLines = (lines: { itemId: string; qty: number }[]): { itemId: string; name: string; qty: number }[] => {
+    let next = cart
+    const added: { itemId: string; name: string; qty: number }[] = []
+    for (const l of lines) {
+      const item = menuItems.find(m => m.id === l.itemId)
+      if (!item || l.qty < 1) continue
+      const inCart = next.find(c => c.id === item.id)?.quantity || 0
+      const remaining = (stockMap[item.id] || 0) - inCart
+      if (remaining <= 0) {
+        toast(`${item.name} is out of stock. Add stock to keep selling.`, 'warning')
+        continue
+      }
+      const qty = Math.min(l.qty, remaining)
+      if (qty < l.qty) toast(`Only ${remaining} ${item.name} left, so ${qty} was added.`, 'warning')
+      next = inCart > 0
+        ? next.map(c => c.id === item.id ? { ...c, quantity: c.quantity + qty } : c)
+        : [...next, { id: item.id, name: item.name, price: item.price, unit: item.unit, quantity: qty }]
+      added.push({ itemId: item.id, name: item.name, qty })
+      pulseItem(item.id)
+    }
+    if (added.length > 0) saveCart(next)
+    return added
   }
 
   const updateQuantity = (itemId: string, delta: number) => {
@@ -366,6 +394,8 @@ export default function OrdersPage() {
             )}
           </div>
         </div>
+
+        <VoiceOrderMic menu={menuItems} onAdd={addVoiceLines} />
       </div>
 
       {/* Menu Grid */}

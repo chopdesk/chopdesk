@@ -27,6 +27,8 @@ export type VoiceProblem = {
   reason: 'no_item' | 'no_quantity' | 'ambiguous' | 'multiple_items'
   /** For 'no_item': menu items that sound like what was heard, best first. Never added to the order on their own. */
   suggestions?: SoundMatch[]
+  /** The number spoken with it, if any (so a tap on a suggestion can add the right amount). */
+  qty?: number | null
   candidates: string[]
 }
 
@@ -403,12 +405,12 @@ export function parseVoiceLines(
 
     const heard = m.words.join(' ')
     if (m.kind === 'unknown') {
-      problems.push({ heard, reason: 'no_item', candidates: [], suggestions: rankBySound(m.words, menu) })
+      problems.push({ heard, reason: 'no_item', candidates: [], suggestions: rankBySound(m.words, menu), qty })
       return
     }
     const item = m.item as VoiceMenuItem
     if (m.candidates.length > 0) {
-      problems.push({ heard, reason: 'ambiguous', candidates: m.candidates })
+      problems.push({ heard, reason: 'ambiguous', candidates: m.candidates, qty })
       return
     }
     if (qty === null && options.assumeOne) qty = 1

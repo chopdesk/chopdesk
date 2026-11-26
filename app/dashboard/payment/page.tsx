@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
@@ -7,6 +7,7 @@ import { getSession, type UserSession } from '@/lib/auth'
 import { getActiveShift, type ActiveShift } from '@/lib/shift'
 import { useAlert, useToast } from '@/lib/toast'
 import Spinner from '@/components/Spinner'
+import { flushVoiceFeedback } from '@/lib/voice/feedback'
 import { Banknote, Smartphone, ArrowLeftRight, CheckCircle2 } from 'lucide-react'
 
 type CartItem = {
@@ -167,6 +168,7 @@ export default function PaymentPage() {
     const savedLines = order.items_json as SavedLine[]
 
     localStorage.removeItem('current_order_cart')
+    void flushVoiceFeedback(cart.map(i => ({ itemId: i.id, qty: i.quantity })))
     localStorage.setItem('last_order', JSON.stringify({
       orderId:        order.id,
       items:          savedLines.map(l => ({ name: l.name, quantity: l.qty, price: l.unit_price })),
