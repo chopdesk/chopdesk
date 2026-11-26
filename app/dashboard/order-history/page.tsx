@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -82,10 +82,31 @@ function OrderDetailBody({ order }: { order: Order }) {
   )
 }
 
+const PAGE_SIZE = 50
+// Supabase returns at most 1000 rows per request, so totals are read in 1000-row pages
+const SUM_PAGE = 1000
+
+type Filters = { startDate: string; endDate: string; staff: string; payment: string }
+
+// "2025-03-01" typed by a user in Lagos means local midnight, not UTC midnight
+const dayStart = (d: string) => new Date(`${d}T00:00:00`).toISOString()
+const dayEnd = (d: string) => new Date(`${d}T23:59:59.999`).toISOString()
+
+// ₦1,250,000 -> ₦1.25M so three stat cards fit side by side on a phone
+function compactNaira(n: number): string {
+  const abs = Math.abs(n)
+  if (abs >= 1_000_000) return `₦${(n / 1_000_000).toFixed(abs >= 10_000_000 ? 1 : 2).replace(/\.?0+$/, '')}M`
+  if (abs >= 100_000) return `₦${Math.round(n / 1000)}k`
+  return `₦${Math.round(n).toLocaleString()}`
+}
+
 export default function OrderHistoryPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [orders, setOrders] = useState<Order[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [totalRevenue, setTotalRevenue] = useState(0)
   const [staffList, setStaffList] = useState<Staff[]>([])
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [startDate, setStartDate] = useState('')
@@ -108,26 +129,75 @@ export default function OrderHistoryPage() {
     if (data) setStaffList(data)
   }
 
-  async function fetchOrders() {
-    setLoading(true)
-    let query = supabase
-      .from('orders')
-      .select('*, profiles(first_name, surname)')
-      .order('created_at', { ascending: false })
+  const current = (): Filters => ({
+    startDate,
+    endDate,
+    staff: selectedStaff,
+    payment: selectedPayment,
+  })
 
-    if (startDate) query = query.gte('created_at', `${startDate}T00:00:00`)
-    if (endDate)   query = query.lte('created_at', `${endDate}T23:59:59`)
-    if (selectedStaff)   query = query.eq('staff_id', selectedStaff)
-    if (selectedPayment) query = query.eq('payment_method', selectedPayment)
+  // every list and total uses the same filters, so they can never disagree
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function applyFilters(query: any, f: Filters): any {
+    let q = query
+    if (f.startDate) q = q.gte('created_at', dayStart(f.startDate))
+    if (f.endDate) q = q.lte('created_at', dayEnd(f.endDate))
+    if (f.staff) q = q.eq('staff_id', f.staff)
+    if (f.payment) q = q.eq('payment_method', f.payment)
+    return q
+  }
 
-    const { data } = await query
-    if (data) {
-      setOrders(data.map(o => ({
-        ...o,
-        staff_name: o.profiles ? `${o.profiles.first_name} ${o.profiles.surname}` : 'Unknown'
-      })))
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function toOrders(rows: any[]): Order[] {
+    return rows.map(o => ({
+      ...o,
+      staff_name: o.profiles ? `${o.profiles.first_name} ${o.profiles.surname}` : 'Unknown',
+    }))
+  }
+
+  // real totals for everything that matches, not just the rows on screen
+  async function fetchTotals(f: Filters) {
+    const { count } = await applyFilters(
+      supabase.from('orders').select('id', { count: 'exact', head: true }),
+      f
+    )
+    setTotalCount(count ?? 0)
+
+    let sum = 0
+    for (let from = 0; ; from += SUM_PAGE) {
+      const { data } = await applyFilters(supabase.from('orders').select('total'), f)
+        .order('created_at', { ascending: false })
+        .range(from, from + SUM_PAGE - 1)
+      if (!data || data.length === 0) break
+      sum += data.reduce((acc: number, o: { total: number }) => acc + Number(o.total || 0), 0)
+      if (data.length < SUM_PAGE) break
     }
+    setTotalRevenue(sum)
+  }
+
+  async function fetchOrders(f: Filters = current()) {
+    setLoading(true)
+    const [{ data }] = await Promise.all([
+      applyFilters(supabase.from('orders').select('*, profiles(first_name, surname)'), f)
+        .order('created_at', { ascending: false })
+        .range(0, PAGE_SIZE - 1),
+      fetchTotals(f),
+    ])
+    setOrders(data ? toOrders(data) : [])
+    setSelectedOrder(null)
     setLoading(false)
+  }
+
+  async function loadMore() {
+    setLoadingMore(true)
+    const { data } = await applyFilters(
+      supabase.from('orders').select('*, profiles(first_name, surname)'),
+      current()
+    )
+      .order('created_at', { ascending: false })
+      .range(orders.length, orders.length + PAGE_SIZE - 1)
+    if (data) setOrders(prev => [...prev, ...toOrders(data)])
+    setLoadingMore(false)
   }
 
   const clearFilters = () => {
@@ -135,13 +205,12 @@ export default function OrderHistoryPage() {
     setEndDate('')
     setSelectedStaff('')
     setSelectedPayment('')
-    fetchOrders()
+    fetchOrders({ startDate: '', endDate: '', staff: '', payment: '' })
   }
 
-  const totalRevenue = orders.reduce((s, o) => s + o.total, 0)
-  const avgOrder = orders.length > 0 ? totalRevenue / orders.length : 0
+  const avgOrder = totalCount > 0 ? totalRevenue / totalCount : 0
 
-  if (loading) {
+  if (loading && orders.length === 0 && totalCount === 0) {
     return <Spinner fullScreen />
   }
 
@@ -151,16 +220,19 @@ export default function OrderHistoryPage() {
 
         <h1 className="t-h1 text-text-primary">Order History</h1>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-3">
+        {/* Stats: real totals for every matching order */}
+        <div className="grid grid-cols-3 gap-2 md:gap-3">
           {[
-            { label: 'Total Orders', value: orders.length, color: 'text-primary' },
-            { label: 'Total Revenue', value: `₦${totalRevenue.toLocaleString()}`, color: 'text-success' },
-            { label: 'Avg Order', value: `₦${Math.round(avgOrder).toLocaleString()}`, color: 'text-info' },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="card text-center">
-              <p className="t-small text-text-muted">{label}</p>
-              <p className={`t-h2 ${color} mt-1`}>{value}</p>
+            { label: 'Total Orders', full: totalCount.toLocaleString(), short: totalCount.toLocaleString(), color: 'text-primary' },
+            { label: 'Total Revenue', full: `₦${totalRevenue.toLocaleString()}`, short: compactNaira(totalRevenue), color: 'text-success' },
+            { label: 'Avg Order', full: `₦${Math.round(avgOrder).toLocaleString()}`, short: compactNaira(avgOrder), color: 'text-info' },
+          ].map(({ label, full, short, color }) => (
+            <div key={label} className="card min-w-0 px-2 text-center md:px-4">
+              <p className="t-small truncate text-text-muted">{label}</p>
+              <p className={`text-base font-medium md:text-xl ${color} mt-1 truncate`}>
+                <span className="md:hidden">{short}</span>
+                <span className="hidden md:inline">{full}</span>
+              </p>
             </div>
           ))}
         </div>
@@ -197,7 +269,7 @@ export default function OrderHistoryPage() {
             </select>
           </div>
           <div className="flex gap-3 md:col-span-2">
-            <button onClick={fetchOrders} className="btn-primary flex-1 flex items-center justify-center gap-2">
+            <button onClick={() => fetchOrders()} className="btn-primary flex-1 flex items-center justify-center gap-2">
               <Search size={16} /> Search
             </button>
             <button onClick={clearFilters} className="btn-secondary flex-1">Clear</button>
@@ -206,6 +278,11 @@ export default function OrderHistoryPage() {
 
         {/* Orders list */}
         <div className="space-y-2">
+          {totalCount > 0 && (
+            <p className="t-small text-text-muted px-1">
+              Showing {orders.length.toLocaleString()} of {totalCount.toLocaleString()} orders
+            </p>
+          )}
           {orders.length === 0 ? (
             <div className="card text-center py-10">
               <Package size={32} className="mx-auto text-text-muted mb-2" />
@@ -218,25 +295,32 @@ export default function OrderHistoryPage() {
                 className={`card press press-flat cursor-pointer ${selectedOrder?.id === order.id ? 'lg:border-primary! lg:bg-primary-light!' : ''}`}
                 onClick={() => setSelectedOrder(order)}
               >
-                <div className="flex justify-between items-start mb-2">
-                  <div>
+                <div className="flex justify-between items-start gap-3 mb-2">
+                  <div className="min-w-0">
                     <p className="t-mono text-text-muted">#{order.id.slice(-8)}</p>
                     <p className="t-h3 text-text-primary mt-0.5">₦{order.total.toLocaleString()}</p>
                   </div>
-                  <div className="text-right">
+                  <div className="shrink-0 text-right">
                     <p className="t-label text-text-primary capitalize">{order.payment_method}</p>
-                    <p className="t-small text-text-muted mt-0.5">{new Date(order.created_at).toLocaleString('en-NG')}</p>
+                    <p className="t-small text-text-muted mt-0.5">
+                      {new Date(order.created_at).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </p>
                   </div>
                 </div>
-                <div className="flex justify-between t-small text-text-secondary">
-                  <div className="flex items-center gap-1.5">
-                    <User size={12} />
-                    <span>{order.staff_name}</span>
+                <div className="flex justify-between gap-3 t-small text-text-secondary">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <User size={12} className="shrink-0" />
+                    <span className="truncate">{order.staff_name}</span>
                   </div>
-                  <span>{order.items_json.length} item(s)</span>
+                  <span className="shrink-0">{order.items_json.length} item{order.items_json.length === 1 ? '' : 's'}</span>
                 </div>
               </div>
             ))
+          )}
+          {orders.length < totalCount && (
+            <button onClick={loadMore} disabled={loadingMore} className="btn-secondary w-full">
+              {loadingMore ? 'Loading…' : `Load ${Math.min(PAGE_SIZE, totalCount - orders.length)} more`}
+            </button>
           )}
         </div>
         </div>
