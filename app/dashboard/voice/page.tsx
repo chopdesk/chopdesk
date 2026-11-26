@@ -1,12 +1,14 @@
-'use client'
+﻿'use client'
 
 // Voice assistant: practise speaking to the app and teach it how this business's menu sounds.
 // The mic will also appear inside Orders, Shift and Close Shift once those screens are wired up.
 
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { getSession } from '@/lib/auth'
+import { parseBest, type Guess } from '@/lib/voice/best'
+import { useRecognizer } from '@/lib/voice/useRecognizer'
 import {
-  parseVoiceLines,
   type VoiceMenuItem,
   type VoiceParseResult,
   type VoicePhrase,
@@ -14,29 +16,14 @@ import {
 } from '@/lib/voice/parse'
 import { Mic, Square, Volume2, X } from 'lucide-react'
 
-type Alt = { transcript: string; confidence: number }
-type ResultLike = { isFinal: boolean; length: number; [i: number]: Alt }
-type EventLike = { resultIndex: number; results: { length: number; [i: number]: ResultLike } }
-type RecognitionLike = {
-  lang: string
-  continuous: boolean
-  interimResults: boolean
-  maxAlternatives: number
-  onresult: ((e: EventLike) => void) | null
-  onerror: ((e: { error: string }) => void) | null
-  onend: (() => void) | null
-  start: () => void
-  stop: () => void
-  abort: () => void
-}
-type RecognitionCtor = new () => RecognitionLike
-
 type Attempt = {
   id: number
   lang: string
   heard: string
   confidence: number
   others: string[]
+  guesses: Guess[]
+  guessIndex: number
   result: VoiceParseResult
 }
 
@@ -57,15 +44,6 @@ const FEEDBACK: { id: Feedback; label: string }[] = [
 
 const RETRY_PHRASE = 'Come again please'
 
-function getRecognitionCtor(): RecognitionCtor | null {
-  if (typeof window === 'undefined') return null
-  const w = window as unknown as {
-    SpeechRecognition?: RecognitionCtor
-    webkitSpeechRecognition?: RecognitionCtor
-  }
-  return w.SpeechRecognition || w.webkitSpeechRecognition || null
-}
-
 // the most natural-sounding voice this phone has: "natural/neural" first, then Nigerian, then British, then US
 function pickBestVoice(list: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined {
   const score = (v: SpeechSynthesisVoice) => {
@@ -80,14 +58,6 @@ function pickBestVoice(list: SpeechSynthesisVoice[]): SpeechSynthesisVoice | und
     return s
   }
   return [...list].sort((a, b) => score(b) - score(a))[0]
-}
-
-const ERROR_TEXT: Record<string, string> = {
-  'not-allowed': 'The microphone is blocked. Tap the lock icon in the address bar, allow the microphone, then try again.',
-  'service-not-allowed': 'The microphone is blocked. Tap the lock icon in the address bar, allow the microphone, then try again.',
-  'no-speech': 'Heard nothing. Tap the mic and try again.',
-  'audio-capture': 'No microphone was found on this device.',
-  network: 'Speech recognition needs internet. Check the connection.',
 }
 
 function problemText(p: VoiceProblem): string {
@@ -105,10 +75,6 @@ function problemText(p: VoiceProblem): string {
 
 export default function VoiceTestPage() {
   const [items, setItems] = useState<VoiceMenuItem[]>([])
-  const [supported, setSupported] = useState<boolean | null>(null)
-  const [listening, setListening] = useState(false)
-  const [interim, setInterim] = useState('')
-  const [error, setError] = useState('')
   const [lang, setLang] = useState('en-NG')
   const [feedback, setFeedback] = useState<Feedback>('chime')
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
@@ -118,7 +84,6 @@ export default function VoiceTestPage() {
   const [skipped, setSkipped] = useState<Record<string, string[]>>({})
   const [note, setNote] = useState('')
 
-  const recRef = useRef<RecognitionLike | null>(null)
   const audioRef = useRef<AudioContext | null>(null)
   const itemsRef = useRef<VoiceMenuItem[]>([])
   const taughtRef = useRef<TaughtRow[]>([])
@@ -126,6 +91,14 @@ export default function VoiceTestPage() {
   const voicesRef = useRef<SpeechSynthesisVoice[]>([])
   const voiceNameRef = useRef('')
   const nextId = useRef(1)
+  const langRef = useRef('en-NG')
+  const finishRef = useRef<(guesses: Guess[]) => void>(() => undefined)
+
+  // the hook is called here, at the top, so every part of this page can use it
+  const { supported, listening, interim, error, start: startRecognizer, stop, setError } = useRecognizer({
+    lang,
+    onFinal: guesses => finishRef.current(guesses),
+  })
 
   useEffect(() => {
     itemsRef.current = items
@@ -134,13 +107,14 @@ export default function VoiceTestPage() {
     feedbackRef.current = feedback
   }, [feedback])
   useEffect(() => {
+    langRef.current = lang
+  }, [lang])
+  useEffect(() => {
     voicesRef.current = voices
     voiceNameRef.current = voiceName
   }, [voices, voiceName])
 
   useEffect(() => {
-    setSupported(getRecognitionCtor() !== null)
-
     supabase
       .from('menu_items')
       .select('id, name')
@@ -176,11 +150,10 @@ export default function VoiceTestPage() {
     synth?.addEventListener('voiceschanged', loadVoices)
 
     return () => {
-      recRef.current?.abort()
       synth?.cancel()
       synth?.removeEventListener('voiceschanged', loadVoices)
     }
-  }, [])
+  }, [setError])
 
   const say = (text: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return
@@ -224,7 +197,10 @@ export default function VoiceTestPage() {
     taughtRef.current = next
     setTaught(next)
     setAttempts(prev =>
-      prev.map(a => ({ ...a, result: parseVoiceLines(a.heard, itemsRef.current, toPhrases()) }))
+      prev.map(a => {
+        const again = parseBest(a.guesses, itemsRef.current, toPhrases())
+        return again ? { ...a, ...splitGuesses(again.heard, a.guesses), guessIndex: again.guessIndex, result: again.result } : a
+      })
     )
   }
 
@@ -278,30 +254,54 @@ export default function VoiceTestPage() {
     }
   }
 
-  const finish = (alts: Alt[], usedLang: string) => {
-    const best = alts[0]
+  // Chrome's guess that was used becomes "heard"; the other guesses are shown as "also heard"
+  const splitGuesses = (heard: string, guesses: Guess[]) => ({
+    heard,
+    confidence: guesses.find(g => g.transcript === heard)?.confidence ?? 0,
+    others: guesses.filter(g => g.transcript !== heard).map(g => g.transcript),
+  })
+
+  // save the sentence (text only) so we can learn from it later; quietly does nothing if it fails
+  const logUtterance = (guesses: Guess[], heard: string, result: VoiceParseResult) => {
+    const session = getSession()
+    if (!session) return
+    void supabase
+      .rpc('log_voice_utterance', {
+        p_org: session.org_id,
+        p_source: 'test',
+        p_heard: heard,
+        p_alternatives: guesses.map(g => g.transcript).filter(t => t !== heard),
+        p_understood: result.lines.map(l => ({ item_id: l.itemId, qty: l.qty })),
+      })
+      .then(() => undefined, () => undefined)
+  }
+
+  const finish = (guesses: Guess[]) => {
+    const best = parseBest(guesses, itemsRef.current, toPhrases())
     if (!best) return
-    const result = parseVoiceLines(best.transcript, itemsRef.current, toPhrases())
     setAttempts(prev =>
       [
         {
           id: nextId.current++,
-          lang: usedLang,
-          heard: best.transcript,
-          confidence: best.confidence,
-          others: alts.slice(1).map(a => a.transcript),
-          result,
+          lang: langRef.current,
+          ...splitGuesses(best.heard, guesses),
+          guesses,
+          guessIndex: best.guessIndex,
+          result: best.result,
         },
         ...prev,
       ].slice(0, 15)
     )
-    respond(result)
+    logUtterance(guesses, best.heard, best.result)
+    respond(best.result)
   }
 
-  const start = () => {
-    const Ctor = getRecognitionCtor()
-    if (!Ctor || listening) return
+  useEffect(() => {
+    finishRef.current = finish
+  })
 
+  const start = () => {
+    if (listening) return
     // the audio context has to be created from a tap
     if (!audioRef.current && typeof window !== 'undefined') {
       const AC =
@@ -310,50 +310,9 @@ export default function VoiceTestPage() {
       if (AC) audioRef.current = new AC()
     }
     audioRef.current?.resume()
-
-    const rec = new Ctor()
-    rec.lang = lang
-    rec.continuous = false
-    rec.interimResults = true
-    rec.maxAlternatives = 3
-
-    rec.onresult = (e) => {
-      let interimText = ''
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const res = e.results[i]
-        const first = res?.[0]
-        if (!res || !first) continue
-        if (res.isFinal) {
-          const alts: Alt[] = []
-          for (let k = 0; k < res.length; k++) {
-            const a = res[k]
-            if (a) alts.push(a)
-          }
-          finish(alts, lang)
-        } else {
-          interimText += first.transcript
-        }
-      }
-      setInterim(interimText)
-    }
-    rec.onerror = (e) => setError(ERROR_TEXT[e.error] || 'Voice error: ' + e.error)
-    rec.onend = () => {
-      setListening(false)
-      setInterim('')
-    }
-
-    recRef.current = rec
-    setError('')
     setNote('')
-    setListening(true)
-    try {
-      rec.start()
-    } catch {
-      setListening(false)
-    }
+    startRecognizer()
   }
-
-  const stop = () => recRef.current?.stop()
 
   if (supported === false) {
     return (
@@ -442,6 +401,7 @@ export default function VoiceTestPage() {
             <p className="text-lg font-medium">&quot;{a.heard}&quot;</p>
             <p className="text-xs text-gray-400">
               {a.lang} · confidence {Math.round(a.confidence * 100)}%
+              {a.guessIndex > 0 && ` · used guess ${a.guessIndex + 1} of ${a.guesses.length}`}
             </p>
             {a.others.length > 0 && (
               <p className="text-xs text-gray-400">Also heard: {a.others.map(o => `"${o}"`).join(', ')}</p>
