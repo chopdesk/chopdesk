@@ -3,7 +3,15 @@
 // Pure functions only: no browser or database code, so it is easy to test and reuse
 // for stock logging, closing counts and order taking.
 
-export type VoiceMenuItem = { id: string; name: string }
+export type VoiceMenuItem = {
+  id: string
+  name: string
+  /** Set when this entry is a phrase the business taught for the item: it is matched instead of `name`, and more strictly. */
+  matchText?: string
+}
+
+/** A phrase a business taught: when this is heard, it means this menu item. */
+export type VoicePhrase = { itemId: string; phrase: string }
 
 export type VoiceLine = {
   itemId: string
@@ -141,6 +149,25 @@ function wordsMatch(heard: string, target: string): boolean {
   return distance(h, t) <= allowed
 }
 
+// taught phrases are exact by design (they are what the phone really wrote), so only forgive tiny slips in long words
+function phraseWordsMatch(heard: string, target: string): boolean {
+  const h = heard.replace(/s$/, '')
+  const t = target.replace(/s$/, '')
+  if (h === t) return true
+  return t.length >= 6 && distance(h, t) <= 1
+}
+
+/** Adds each taught phrase as an extra way to say its menu item. Nothing here depends on what the menu contains. */
+export function withPhrases(items: VoiceMenuItem[], phrases: VoicePhrase[]): VoiceMenuItem[] {
+  const byId = new Map(items.map(i => [i.id, i]))
+  const extra: VoiceMenuItem[] = []
+  for (const p of phrases) {
+    const item = byId.get(p.itemId)
+    if (item) extra.push({ id: item.id, name: item.name, matchText: p.phrase })
+  }
+  return [...items, ...extra]
+}
+
 type Scored = { item: VoiceMenuItem; score: number; matched: number; used: Set<number> }
 
 function matchItems(words: string[], items: VoiceMenuItem[]): Scored[] {
@@ -152,22 +179,36 @@ function matchItems(words: string[], items: VoiceMenuItem[]): Scored[] {
 
   const scored: Scored[] = []
   for (const item of items) {
-    const nameWords = normalizeWords(item.name).filter(w => w !== '|' && !NAME_STOP.has(w))
+    const strict = item.matchText !== undefined
+    const nameWords = normalizeWords(item.matchText ?? item.name).filter(w => w !== '|' && !NAME_STOP.has(w))
     if (nameWords.length === 0) continue
     const used = new Set<number>()
     let matched = 0
     for (const nw of nameWords) {
-      const hit = units.find(u => (u.idx.length === 1 || nw.length >= 7) && wordsMatch(u.text, nw))
+      const same = strict ? phraseWordsMatch : wordsMatch
+      const hit = units.find(u => (u.idx.length === 1 || nw.length >= 7) && same(u.text, nw))
       if (hit) {
         matched++
         hit.idx.forEach(k => used.add(k))
       }
     }
+    // a taught phrase counts only when every word of it was heard
+    if (strict && matched < nameWords.length) continue
     const score = matched / nameWords.length
     if (matched >= 1 && score >= 0.5) scored.push({ item, score, matched, used })
   }
   // best score first; on a tie, the item that matched more words wins
-  return scored.sort((a, b) => b.score - a.score || b.matched - a.matched)
+  scored.sort((a, b) => b.score - a.score || b.matched - a.matched)
+
+  // an item can match through its name and through taught phrases: keep only its best match
+  const seen = new Set<string>()
+  const best: Scored[] = []
+  for (const r of scored) {
+    if (seen.has(r.item.id)) continue
+    seen.add(r.item.id)
+    best.push(r)
+  }
+  return best
 }
 
 const isDisjoint = (a: Set<number>, b: Set<number>) => {
@@ -249,7 +290,12 @@ function evaluateAll(chunks: Tok[][], items: VoiceMenuItem[]): Evaluated[] {
  * If the same item is heard twice, both lines are returned; the caller decides
  * whether the later one replaces the earlier (stock) or adds to it (orders).
  */
-export function parseVoiceLines(transcript: string, items: VoiceMenuItem[]): VoiceParseResult {
+export function parseVoiceLines(
+  transcript: string,
+  menu: VoiceMenuItem[],
+  phrases: VoicePhrase[] = []
+): VoiceParseResult {
+  const items = withPhrases(menu, phrases)
   const lines: VoiceLine[] = []
   const problems: VoiceProblem[] = []
 
