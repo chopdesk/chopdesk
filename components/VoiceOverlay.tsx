@@ -10,9 +10,9 @@
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
+import { Volume2, VolumeX, X } from 'lucide-react'
 
-export type VoiceState = 'idle' | 'armed' | 'listening' | 'thinking' | 'ok' | 'maybe'
+export type VoiceState = 'idle' | 'listening' | 'thinking' | 'ok' | 'maybe'
 
 type Props = {
   open: boolean
@@ -27,11 +27,14 @@ type Props = {
   hint: string
   /** error message (microphone blocked, and so on) */
   error: string
+  /** is the spoken reply on */
+  sound: boolean
+  onToggleSound: () => void
   onMic: () => void
   onClose: () => void
   /** the mic icon */
   micIcon: ReactNode
-  /** the "did you mean" cards go here */
+  /** the "did you mean" cards and the current order go here */
   children?: ReactNode
 }
 
@@ -56,9 +59,12 @@ const CSS = `
 .vo-root{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;height:100dvh;
   background:rgba(255,255,255,.95);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
   animation:vo-in .22s ease-out}
-.vo-top{display:flex;align-items:center;justify-content:space-between;
+.vo-top{display:flex;align-items:center;justify-content:space-between;gap:8px;
   padding:calc(12px + env(safe-area-inset-top,0px)) 16px 8px 20px}
-.vo-brand{font-size:14px;font-weight:600;color:#12566B;letter-spacing:.02em}
+.vo-brand{flex:1;font-size:14px;font-weight:600;color:#12566B;letter-spacing:.02em}
+.vo-icon{display:flex;align-items:center;justify-content:center;width:44px;height:44px;min-width:0;min-height:0;padding:0;
+  border:1px solid #E5E7EB;border-radius:9999px;background:#fff;color:#12566B;cursor:pointer}
+.vo-icon[data-off=true]{color:#9CA3AF}
 .vo-done{display:flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;border:1px solid #E5E7EB;
   border-radius:9999px;background:#fff;color:#111;font-size:15px;font-weight:500;cursor:pointer}
 .vo-body{flex:1;min-height:0;overflow-y:auto;padding:12px 24px 16px}
@@ -76,7 +82,7 @@ const CSS = `
 .vo-ring{position:absolute;inset:0;border-radius:inherit;border:3px solid #4285F4;opacity:0;pointer-events:none}
 .vo-root[data-state=listening] .vo-ring,.vo-root[data-state=thinking] .vo-ring{opacity:1;animation:vo-ping 1.4s ease-out infinite}
 .vo-root[data-state=listening] .vo-mic,.vo-root[data-state=thinking] .vo-mic{background:#C62828}
-.vo-hint{font-size:13px;color:#6B7280}
+.vo-hint{font-size:13px;color:#6B7280;text-align:center}
 
 .vo-line{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:flex-end;height:18px;pointer-events:none}
 .vo-line::before{content:"";position:absolute;left:0;right:0;bottom:0;height:90px;
@@ -104,7 +110,21 @@ const CSS = `
 }
 `
 
-export default function VoiceOverlay({ open, state, level, pulse, text, hint, error, onMic, onClose, micIcon, children }: Props) {
+export default function VoiceOverlay({
+  open,
+  state,
+  level,
+  pulse,
+  text,
+  hint,
+  error,
+  sound,
+  onToggleSound,
+  onMic,
+  onClose,
+  micIcon,
+  children,
+}: Props) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
 
@@ -120,6 +140,16 @@ export default function VoiceOverlay({ open, state, level, pulse, text, hint, er
 
       <div className="vo-top">
         <span className="vo-brand">Chopdesk assistant</span>
+        <button
+          type="button"
+          className="vo-icon"
+          data-off={!sound}
+          onClick={onToggleSound}
+          aria-pressed={sound}
+          aria-label={sound ? 'Spoken reply is on. Tap to turn off' : 'Spoken reply is off. Tap to turn on'}
+        >
+          {sound ? <Volume2 size={20} /> : <VolumeX size={20} />}
+        </button>
         <button type="button" className="vo-done" onClick={onClose} aria-label="Close the assistant">
           <X size={18} />
           Done
@@ -135,7 +165,7 @@ export default function VoiceOverlay({ open, state, level, pulse, text, hint, er
       </div>
 
       <div className="vo-bottom">
-        <button type="button" className="vo-mic" onClick={onMic} aria-label={hint}>
+        <button type="button" className="vo-mic" onClick={onMic} aria-label="Start or stop listening">
           <span className="vo-ring" />
           {micIcon}
         </button>
