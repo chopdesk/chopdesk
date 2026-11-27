@@ -1,10 +1,14 @@
 ﻿'use client'
 
 // components/VoiceOrderMic.tsx
-// The mic for the Orders screen. Staff say an order ("2 jollof, ewa agoyin 3") and it is ADDED to the cart.
+// The voice assistant for the Orders screen.
+// A round mic button sits at the bottom right (easy for the thumb). Tapping it, or saying "Hey Chopdesk",
+// opens a full-screen assistant. Staff say an order ("2 jollof, ewa agoyin 3") and it is ADDED to the cart.
 // Things the app is not sure about never block the order: they show as small tap-to-confirm choices.
+// The page's own controls (filters, menu, cart) are passed in as children and are always usable.
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '@/lib/supabase'
 import { getSession } from '@/lib/auth'
 import { parseBest, type Guess } from '@/lib/voice/best'
@@ -13,9 +17,9 @@ import { promoteLearned, learnedCounts, type LearningRow } from '@/lib/voice/lea
 import { byPopularity, popularityFromOrders, rerank, type Popularity } from '@/lib/voice/rank'
 import { addVoiceMarks, tagVoiceMarks, type VoiceMark } from '@/lib/voice/feedback'
 import type { VoicePhrase, VoiceProblem } from '@/lib/voice/parse'
-import VoiceBar, { type BarState } from '@/components/VoiceBar'
+import VoiceOverlay, { type VoiceState } from '@/components/VoiceOverlay'
 import { useWakeRecognizer } from '@/lib/voice/useWakeRecognizer'
-import { Mic, Radio, X } from 'lucide-react'
+import { Mic, Radio, Square, X } from 'lucide-react'
 
 type MenuLite = { id: string; name: string }
 export type VoiceAdded = { itemId: string; name: string; qty: number }
@@ -24,14 +28,16 @@ type Props = {
   menu: MenuLite[]
   /** Puts items in the cart. Returns what was really added (stock may cut a number down or block it). */
   onAdd: (lines: { itemId: string; qty: number }[]) => VoiceAdded[]
-  /** Shown straight under the mic bar (the page puts its filter row here, so the header stays one block). */
+  /** true while the phone cart bar is showing, so the mic button sits above it */
+  lift?: boolean
+  /** The page's own controls (the filter row). Always shown, always usable. */
   children?: ReactNode
 }
 
 type Option = { itemId: string; name: string }
 type Note = { key: number; batch: number; heard: string; canPick: boolean; text: string; qty: number; options: Option[] }
 
-export default function VoiceOrderMic({ menu, onAdd, children }: Props) {
+export default function VoiceOrderMic({ menu, onAdd, lift = false, children }: Props) {
   const [taught, setTaught] = useState<VoicePhrase[]>([])
   const [learning, setLearning] = useState<LearningRow[]>([])
   const [popularity, setPopularity] = useState<Popularity>({})
@@ -39,7 +45,10 @@ export default function VoiceOrderMic({ menu, onAdd, children }: Props) {
   const [status, setStatus] = useState('')
   const [pickKey, setPickKey] = useState<number | null>(null)
   const [query, setQuery] = useState('')
-  // glow states: "thinking" = waiting for the phone to hand over the sentence; flash = brief result colour
+  const [mounted, setMounted] = useState(false)
+  // the full-screen assistant
+  const [open, setOpen] = useState(false)
+  // "thinking" = waiting for the phone to hand over the sentence; flash = brief result colour
   const [thinking, setThinking] = useState(false)
   const [flash, setFlash] = useState<'ok' | 'maybe' | null>(null)
   // live loudness needs a second microphone stream, which some phones do not allow while listening.
@@ -52,6 +61,7 @@ export default function VoiceOrderMic({ menu, onAdd, children }: Props) {
   const [wakeMsg, setWakeMsg] = useState('')
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const nextKey = useRef(1)
   // id of the newest logged sentence; the learning step will use it later
   const lastLogId = useRef<string | null>(null)
@@ -98,6 +108,7 @@ export default function VoiceOrderMic({ menu, onAdd, children }: Props) {
   }, [])
 
   useEffect(() => {
+    setMounted(true)
     try {
       const q = new URLSearchParams(window.location.search).get('meter')
       if (q === '1') localStorage.setItem('voice_meter', '1')
@@ -110,6 +121,7 @@ export default function VoiceOrderMic({ menu, onAdd, children }: Props) {
     return () => {
       if (flashTimer.current) clearTimeout(flashTimer.current)
       if (pressTimer.current) clearTimeout(pressTimer.current)
+      if (closeTimer.current) clearTimeout(closeTimer.current)
     }
   }, [])
 
@@ -117,6 +129,17 @@ export default function VoiceOrderMic({ menu, onAdd, children }: Props) {
     setFlash(kind)
     if (flashTimer.current) clearTimeout(flashTimer.current)
     flashTimer.current = setTimeout(() => setFlash(null), 1100)
+  }
+
+  const cancelClose = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current)
+    closeTimer.current = null
+  }
+
+  // a clean order closes the assistant by itself, so staff are back on the menu
+  const closeSoon = () => {
+    cancelClose()
+    closeTimer.current = setTimeout(() => setOpen(false), 1500)
   }
 
   const cleanWords = (text: string) => text.toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim()
@@ -158,7 +181,12 @@ export default function VoiceOrderMic({ menu, onAdd, children }: Props) {
 
   const handleFinal = (guesses: Guess[]) => {
     const best = parseBest(guesses, menu, phrases, { assumeOne: true })
-    if (!best) return
+    if (!best) {
+      setStatus('I did not catch that. Tap the mic and try again.')
+      setThinking(false)
+      showFlash('maybe')
+      return
+    }
     const { lines, problems } = best.result
     const batch = Date.now()
 
@@ -210,6 +238,8 @@ export default function VoiceOrderMic({ menu, onAdd, children }: Props) {
     setThinking(false)
     showFlash(understood ? 'ok' : 'maybe')
     setNotes(prev => [...problems.map(p => noteFor(p, batch)), ...prev].slice(0, 4))
+    if (understood && problems.length === 0) closeSoon()
+    else cancelClose()
   }
 
   const { supported, listening, interim, error, level, start, stop } = useRecognizer({
@@ -234,12 +264,20 @@ export default function VoiceOrderMic({ menu, onAdd, children }: Props) {
     enabled: wakeOn && !wakePaused && supported !== false,
     lang: 'en-NG',
     onWake: () => {
+      cancelClose()
       setFlash(null)
       setWakeMsg('')
+      setOpen(true)
       buzz()
     },
-    onSleep: () => setStatus(''),
-    onCommand: text => handleFinal([{ transcript: text, confidence: 1 }]),
+    onSleep: () => {
+      setStatus('')
+      setOpen(false)
+    },
+    onCommand: text => {
+      setOpen(true)
+      handleFinal([{ transcript: text, confidence: 1 }])
+    },
     onFatal: message => {
       setWakeOn(false)
       setWakeMsg(message)
@@ -286,7 +324,7 @@ export default function VoiceOrderMic({ menu, onAdd, children }: Props) {
     else setWakeNotice(true)
   }
 
-  const barState: BarState = listening
+  const vstate: VoiceState = listening
     ? thinking
       ? 'thinking'
       : 'listening'
@@ -294,28 +332,46 @@ export default function VoiceOrderMic({ menu, onAdd, children }: Props) {
       ? 'listening'
       : flash ?? (wake.phase === 'armed' ? 'armed' : 'idle')
 
-  const barText = listening
+  const bigText = listening
     ? thinking
       ? 'Working on it…'
       : interim || "I'm listening…"
     : wake.phase === 'awake'
       ? wake.heard || 'Yes? Say the order…'
-      : status || (wakeOn ? 'Say "Hey Chopdesk" or tap here' : 'Tap here and say the order')
+      : status || 'Say the order, for example "two jollof and one fish"'
 
+  // start (or stop) the one-shot listening. The phone can only listen one way at a time,
+  // so hands-free pauses for a moment first.
   const press = () => {
+    cancelClose()
     setFlash(null)
     if (listening) {
       stop()
       return
     }
     if (wakeOn) {
-      // the phone can only listen one way at a time: pause hands-free, then start
       setWakePaused(true)
       if (pressTimer.current) clearTimeout(pressTimer.current)
       pressTimer.current = setTimeout(() => start(), 350)
     } else {
       start()
     }
+  }
+
+  const openAndListen = () => {
+    setStatus('')
+    setOpen(true)
+    press()
+  }
+
+  const closeAssistant = () => {
+    cancelClose()
+    if (listening) stop()
+    setOpen(false)
+    setNotes([])
+    setPickKey(null)
+    setQuery('')
+    setFlash(null)
   }
 
   const choose = (note: Note, opt: Option) => {
@@ -329,12 +385,17 @@ export default function VoiceOrderMic({ menu, onAdd, children }: Props) {
         addVoiceMarks([{ itemId: opt.itemId, phrase, kind: 'corrected', batch: note.batch, uid: batchIds.current.get(note.batch) ?? null }])
       }
     }
-    setNotes(prev => prev.filter(n => n.key !== note.key))
+    const rest = notes.filter(n => n.key !== note.key)
+    setNotes(rest)
+    // the last open question is answered: close the assistant
+    if (rest.length === 0 && added.length > 0) closeSoon()
   }
 
   const dismiss = (key: number) => {
-    setNotes(prev => prev.filter(n => n.key !== key))
+    const rest = notes.filter(n => n.key !== key)
+    setNotes(rest)
     if (pickKey === key) setPickKey(null)
+    if (rest.length === 0) closeSoon()
   }
 
   // Staff picked an item for words the app did not know: add it, and remember the words for this business
@@ -351,134 +412,173 @@ export default function VoiceOrderMic({ menu, onAdd, children }: Props) {
   }
 
   // no speech support in this browser: show only the page's own controls
-  if (supported === false) return <>{children}</>
+  if (supported === false) return <div className="pt-3">{children}</div>
+
+  const armed = wakeOn && wake.phase === 'armed'
+
+  // phone: above the cart bar when it shows. Tablet: same idea. PC: left of the cart panel.
+  const place = lift
+    ? 'bottom-[calc(var(--bottom-nav-h)+104px)] md:bottom-28 lg:bottom-6'
+    : 'bottom-[calc(var(--bottom-nav-h)+16px)] md:bottom-6'
 
   return (
     <>
-      <div className="px-4 pb-2 pt-3">
-        <div className="flex items-center gap-2">
-          <div className="min-w-0 flex-1">
-            <VoiceBar
-              state={barState}
-              level={meter && listening ? level : null}
-              pulse={listening ? interim.length : wake.heard.length}
-              onClick={press}
-              label={listening ? 'Stop listening' : 'Speak an order'}
-              text={barText}
-            >
-              <Mic size={22} />
-            </VoiceBar>
-          </div>
-          <button
-            type="button"
-            onClick={toggleWake}
-            aria-pressed={wakeOn}
-            aria-label={wakeOn ? 'Hands-free is on. Tap to turn off' : 'Turn on hands-free, say Hey Chopdesk'}
-            title="Hands-free: say Hey Chopdesk"
-            className={`press flex h-12 w-12 min-h-0 min-w-0 flex-shrink-0 items-center justify-center rounded-full border transition-colors ${
-              wakeOn ? 'border-primary bg-primary text-white' : 'border-gray-200 bg-white text-gray-500'
-            }`}
-          >
-            <Radio size={20} />
-          </button>
-        </div>
+      <div className="pt-3">{children}</div>
 
-        {wakeNotice && (
-          <div className="mt-2 rounded-xl bg-accent/10 px-3 py-3">
-            <p className="t-small text-text-primary">
-              Hands-free keeps the microphone listening while this screen is open. Chrome sends what it hears to
-              Google to turn it into text, the whole time it is on. Turn it on at the counter only, where customers
-              cannot be heard. Chopdesk keeps no sound. It keeps only the words said after "Hey Chopdesk".
-            </p>
-            <div className="mt-2 flex gap-2">
-              <button type="button" onClick={() => turnWake(true)} className="btn-primary press px-4 py-2 text-sm">
-                Turn on
-              </button>
-              <button type="button" onClick={() => setWakeNotice(false)} className="btn-secondary press px-4 py-2 text-sm">
-                Not now
-              </button>
-            </div>
-          </div>
+      {mounted &&
+        !open &&
+        createPortal(
+          <div
+            className={`fixed right-4 z-[25] flex flex-col items-center gap-3 transition-[bottom] duration-200 lg:right-[23.5rem] xl:right-[25.5rem] ${place}`}
+          >
+            <button
+              type="button"
+              onClick={toggleWake}
+              aria-pressed={wakeOn}
+              aria-label={wakeOn ? 'Hands-free is on. Tap to turn off' : 'Turn on hands-free, say Hey Chopdesk'}
+              title="Hands-free: say Hey Chopdesk"
+              className={`press flex h-11 w-11 min-h-0 min-w-0 items-center justify-center rounded-full border shadow-md transition-colors ${
+                wakeOn ? 'border-primary bg-primary text-white' : 'border-gray-200 bg-white text-gray-500'
+              }`}
+            >
+              <Radio size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={openAndListen}
+              aria-label="Speak an order"
+              className={`press flex h-16 w-16 min-h-0 min-w-0 items-center justify-center rounded-full bg-primary text-white shadow-xl ${
+                armed ? 'ring-4 ring-green-400/50 animate-pulse' : ''
+              }`}
+            >
+              <Mic size={28} />
+            </button>
+          </div>,
+          document.body
         )}
 
-        {wakeMsg && <p className="t-small mt-2 text-danger">{wakeMsg}</p>}
-        {error && <p className="t-small mt-2 text-danger">{error}</p>}
-      </div>
-
-      {children}
-
-      {notes.length > 0 && (
-        <div className="px-4 pb-3">
-          <div className="max-h-48 space-y-2 overflow-y-auto">
-          {notes.map(note => (
-            <div key={note.key} className="flex items-start gap-2 rounded-xl bg-accent/10 px-3 py-2">
-              <div className="min-w-0 flex-1">
-                <p className="t-small text-text-primary">{note.text}</p>
-                {note.options.length > 0 && (
-                  <div className="mt-1.5 flex flex-wrap gap-2">
-                    {note.options.map(opt => (
-                      <button
-                        key={opt.itemId}
-                        type="button"
-                        onClick={() => choose(note, opt)}
-                        className="press rounded-full border border-primary bg-white px-3 py-1.5 text-sm font-medium text-primary"
-                      >
-                        {note.qty} × {opt.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {note.canPick && pickKey !== note.key && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPickKey(note.key)
-                      setQuery('')
-                    }}
-                    className="press mt-1.5 text-sm font-medium text-primary underline"
-                  >
-                    Pick from menu
+      {mounted &&
+        (wakeNotice || wakeMsg) &&
+        !open &&
+        createPortal(
+          <div className="fixed inset-x-4 bottom-[calc(var(--bottom-nav-h)+16px)] z-[55] mx-auto max-w-md md:bottom-6">
+            {wakeNotice && (
+              <div className="rounded-2xl border border-gray-200 bg-white px-4 py-4 shadow-xl">
+                <p className="t-small text-text-primary">
+                  Hands-free keeps the microphone listening while this screen is open. Chrome sends what it hears to
+                  Google to turn it into text, the whole time it is on. Turn it on at the counter only, where customers
+                  cannot be heard. Chopdesk keeps no sound. It keeps only the words said after "Hey Chopdesk".
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <button type="button" onClick={() => turnWake(true)} className="btn-primary press px-4 py-2 text-sm">
+                    Turn on
                   </button>
-                )}
-                {pickKey === note.key && (
-                  <div className="mt-2">
-                    <input
-                      value={query}
-                      onChange={e => setQuery(e.target.value)}
-                      placeholder="Search the menu"
-                      className="input-base"
-                    />
-                    <div className="mt-1.5 max-h-32 overflow-y-auto rounded-lg border border-border bg-white">
-                      {menu
-                        .filter(m => m.name.toLowerCase().includes(query.trim().toLowerCase()))
-                        .slice(0, 30)
-                        .map(m => (
-                          <button
-                            key={m.id}
-                            type="button"
-                            onClick={() => void pickFromMenu(note, { itemId: m.id, name: m.name })}
-                            className="press press-flat block w-full min-h-0 border-b border-border px-3 py-2 text-left text-sm last:border-b-0"
-                          >
-                            {note.qty} × {m.name}
-                          </button>
-                        ))}
-                    </div>
-                  </div>
-                )}
+                  <button type="button" onClick={() => setWakeNotice(false)} className="btn-secondary press px-4 py-2 text-sm">
+                    Not now
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => dismiss(note.key)}
-                aria-label="Dismiss"
-                className="press flex h-7 w-7 min-h-0 min-w-0 flex-shrink-0 items-center justify-center rounded-full text-text-muted"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          ))}
+            )}
+            {wakeMsg && !wakeNotice && (
+              <div className="flex items-start gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-xl">
+                <p className="t-small min-w-0 flex-1 text-danger">{wakeMsg}</p>
+                <button
+                  type="button"
+                  onClick={() => setWakeMsg('')}
+                  aria-label="Dismiss"
+                  className="press flex h-7 w-7 min-h-0 min-w-0 items-center justify-center rounded-full text-text-muted"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+          </div>,
+          document.body
+        )}
+
+      <VoiceOverlay
+        open={open}
+        state={vstate}
+        level={meter && listening ? level : null}
+        pulse={listening ? interim.length : wake.heard.length}
+        text={bigText}
+        hint={listening ? 'Tap the mic to stop' : 'Tap the mic to speak again'}
+        error={error}
+        onMic={press}
+        onClose={closeAssistant}
+        micIcon={listening ? <Square size={26} /> : <Mic size={30} />}
+      >
+        {notes.length > 0 && (
+          <div className="space-y-2">
+            {notes.map(note => (
+              <div key={note.key} className="flex items-start gap-2 rounded-xl bg-accent/10 px-3 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="t-small text-text-primary">{note.text}</p>
+                  {note.options.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {note.options.map(opt => (
+                        <button
+                          key={opt.itemId}
+                          type="button"
+                          onClick={() => choose(note, opt)}
+                          className="press rounded-full border border-primary bg-white px-4 py-2 text-sm font-medium text-primary"
+                        >
+                          {note.qty} × {opt.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {note.canPick && pickKey !== note.key && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPickKey(note.key)
+                        setQuery('')
+                      }}
+                      className="press mt-2 text-sm font-medium text-primary underline"
+                    >
+                      Pick from menu
+                    </button>
+                  )}
+                  {pickKey === note.key && (
+                    <div className="mt-2">
+                      <input
+                        value={query}
+                        onChange={e => setQuery(e.target.value)}
+                        placeholder="Search the menu"
+                        className="input-base"
+                      />
+                      <div className="mt-1.5 max-h-40 overflow-y-auto rounded-lg border border-border bg-white">
+                        {menu
+                          .filter(m => m.name.toLowerCase().includes(query.trim().toLowerCase()))
+                          .slice(0, 30)
+                          .map(m => (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => void pickFromMenu(note, { itemId: m.id, name: m.name })}
+                              className="press press-flat block min-h-0 w-full border-b border-border px-3 py-2.5 text-left text-sm last:border-b-0"
+                            >
+                              {note.qty} × {m.name}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => dismiss(note.key)}
+                  aria-label="Dismiss"
+                  className="press flex h-8 w-8 min-h-0 min-w-0 flex-shrink-0 items-center justify-center rounded-full text-text-muted"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
           </div>
-        </div>
-      )}
+        )}
+      </VoiceOverlay>
     </>
   )
 }

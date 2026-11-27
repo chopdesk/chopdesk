@@ -336,7 +336,7 @@ export default function OrdersPage() {
       <div className="min-w-0 flex-1 lg:overflow-y-auto">
       {/* Header with Add Stock Button */}
       <div className="bg-white border-b sticky top-0 z-10">
-        <VoiceOrderMic menu={menuItems} onAdd={addVoiceLines}>
+        <VoiceOrderMic menu={menuItems} onAdd={addVoiceLines} lift={cartCount > 0}>
           {/* One row: category filter, Expense, Add Stock (under the mic bar) */}
           <div className="px-4 pb-3 flex items-center gap-2">
             <div className="relative min-w-0 flex-1">
