@@ -336,66 +336,63 @@ export default function OrdersPage() {
       <div className="min-w-0 flex-1 lg:overflow-y-auto">
       {/* Header with Add Stock Button */}
       <div className="bg-white border-b sticky top-0 z-10">
-        <div className="px-4 py-3 flex justify-between items-center gap-2">
-          <span className="text-sm font-medium text-primary flex-shrink-0">Take an Order</span>
-          <div className="flex items-center gap-2 min-w-0">
+        <VoiceOrderMic menu={menuItems} onAdd={addVoiceLines}>
+          {/* One row: category filter, Expense, Add Stock (under the mic bar) */}
+          <div className="px-4 pb-3 flex items-center gap-2">
+            <div className="relative min-w-0 flex-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setIsDropdownOpen(!isDropdownOpen)
+                }}
+                className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-full text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                <span className="font-medium truncate">
+                  {selectedCategory === 'All' ? 'All Categories' : selectedCategory}
+                </span>
+                <ChevronDown size={16} className={`flex-shrink-0 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isDropdownOpen && (
+                <div className="absolute top-full left-0 mt-1 w-56 max-w-[calc(100vw-2rem)] bg-white border border-gray-200 rounded-xl shadow-lg z-20 max-h-60 overflow-y-auto animate-[fadeIn_0.15s_ease-out]">
+                  {categories.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => {
+                        setSelectedCategory(cat)
+                        setIsDropdownOpen(false)
+                      }}
+                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors first:rounded-t-xl last:rounded-b-xl ${
+                        selectedCategory === cat
+                          ? 'bg-primary/10 text-primary font-medium'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {cat === 'All' ? 'All Categories' : cat}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <button
               onClick={() => router.push('/dashboard/expenses')}
-              className="flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1.5 rounded-full text-sm font-medium flex-shrink-0"
+              aria-label="Expense"
+              className="flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-2 rounded-full text-sm font-medium flex-shrink-0"
             >
               <Receipt size={16} />
-              Expense
+              <span className="hidden min-[400px]:inline">Expense</span>
             </button>
             <button
               onClick={() => setShowAddStock(true)}
-              className="flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1.5 rounded-full text-sm font-medium flex-shrink-0"
+              aria-label="Add Stock"
+              className="flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-2 rounded-full text-sm font-medium flex-shrink-0"
             >
               <PackagePlus size={16} />
-              Add Stock
+              <span className="hidden min-[400px]:inline">Add Stock</span>
             </button>
           </div>
-        </div>
-
-        {/* Category Dropdown Filter */}
-        <div className="px-4 pb-3">
-          <div className="relative">
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                setIsDropdownOpen(!isDropdownOpen)
-              }}
-              className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-            >
-              <span className="font-medium">
-                {selectedCategory === 'All' ? 'All Categories' : selectedCategory}
-              </span>
-              <ChevronDown size={18} className={`transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {isDropdownOpen && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 max-h-60 overflow-y-auto animate-[fadeIn_0.15s_ease-out]">
-                {categories.map(cat => (
-                  <button
-                    key={cat}
-                    onClick={() => {
-                      setSelectedCategory(cat)
-                      setIsDropdownOpen(false)
-                    }}
-                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors first:rounded-t-xl last:rounded-b-xl ${
-                      selectedCategory === cat
-                        ? 'bg-primary/10 text-primary font-medium'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    {cat === 'All' ? 'All Categories' : cat}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <VoiceOrderMic menu={menuItems} onAdd={addVoiceLines} />
+        </VoiceOrderMic>
       </div>
 
       {/* Menu Grid */}
